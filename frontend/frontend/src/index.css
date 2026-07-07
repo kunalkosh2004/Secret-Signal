@@ -1,0 +1,91 @@
+@import "tailwindcss";
+
+@theme {
+  --color-gray-50: #07070d;
+  --color-gray-100: #0c0c14;
+  --color-gray-150: #11111b;
+  --color-gray-200: #161622;
+  --color-gray-250: #1b1b2a;
+  --color-gray-300: #212133;
+  --color-gray-400: #2a2a40;
+  --color-gray-500: #3d3d55;
+  --color-gray-600: #6a6a80;
+  --color-gray-700: #9292a8;
+  --color-gray-800: #b8b8cc;
+  --color-gray-850: #d0d0e0;
+  --color-gray-900: #e8e8f0;
+  --color-gray-950: #f4f4fa;
+
+  --color-accent: #ef4444;
+  --color-accent-dim: #7f1d1d;
+
+  --font-mono: "SF Mono", "Fira Code", "Cascadia Code", "JetBrains Mono", monospace;
+
+  --animate-pulse-glow: pulse-glow 2s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(239, 68, 68, 0.25), 0 0 10px rgba(239, 68, 68, 0.1);
+  }
+  50% {
+    box-shadow: 0 0 15px rgba(239, 68, 68, 0.45), 0 0 30px rgba(239, 68, 68, 0.15);
+  }
+}
+
+@layer base {
+  * {
+    border-color: #1e1e30;
+    scrollbar-width: thin;
+    scrollbar-color: #3d3d55 #0c0c14;
+  }
+
+  body {
+    background-color: #07070d;
+    color: #e8e8f0;
+    font-family: "SF Mono", "Fira Code", "Cascadia Code", "JetBrains Mono", monospace;
+  }
+
+  ::selection {
+    background-color: rgba(239, 68, 68, 0.3);
+    color: #f4f4fa;
+  }
+}
+
+@layer utilities {
+  .bg-grid {
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+
+  .bg-grid-large {
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+    background-size: 80px 80px;
+  }
+
+  .bg-scanlines {
+    background-image: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0, 0, 0, 0.25) 2px,
+      rgba(0, 0, 0, 0.25) 4px
+    );
+  }
+
+  .glow-red {
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.25), 0 0 20px rgba(239, 68, 68, 0.1);
+  }
+
+  .glow-cyan {
+    box-shadow: 0 0 10px rgba(6, 182, 212, 0.25), 0 0 20px rgba(6, 182, 212, 0.1);
+  }
+
+  .border-accent {
+    border-color: rgba(239, 68, 68, 0.3);
+  }
+}
