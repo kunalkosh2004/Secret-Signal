@@ -4,7 +4,6 @@
     "skipLibCheck": true,
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "allowImporting": true,
     "noEmit": false,
     "baseUrl": ".",
     "paths": {
