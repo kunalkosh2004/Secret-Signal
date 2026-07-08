@@ -15,7 +15,7 @@ export const FinalCTA = () => {
           </p>
           <div className="mt-8">
             <Link
-              to="/play"
+              to="/auth"
               className="inline-flex items-center px-6 py-3 border border-accent/50 text-base font-medium rounded-md text-gray-900 bg-accent/10 hover:bg-accent/20 hover:border-accent transition-all glow-red font-mono tracking-wider"
             >
               PLAY SECRET SIGNAL
