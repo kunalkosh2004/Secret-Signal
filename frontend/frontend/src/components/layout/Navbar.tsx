@@ -22,7 +22,7 @@ export const Navbar = () => {
           <div className="hidden md:block mr-24 translate-y-3">
             <div className="ml-6">
               <Link
-                to="/play"
+                to="/auth"
                 className="inline-flex items-center px-4 py-2 border border-accent/50 text-sm font-medium rounded-md bg-accent/10 hover:bg-accent/20 hover:border-accent transition-all glow-red"
               >
                 Play Now
