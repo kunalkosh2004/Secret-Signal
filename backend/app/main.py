@@ -7,6 +7,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.auth.router import router as auth_router
 from app.rooms.router import router as rooms_router
+from app.game_engine.router import router as games_router
+from app.chat.router import router as chat_router
+from app.rooms import repository as room_repository
 from app.core.exceptions import AppException
 
 from app.db.session import SessionLocal
@@ -15,6 +18,7 @@ from app.websocket.handlers import (
     authorize_room_connection,
     broadcast_room_state,
     handle_message,
+    send_game_state_to_user,
 )
 from app.websocket.manager import manager
 
@@ -71,11 +75,19 @@ async def websocket_endpoint(
             room_code=room_code,
         )
 
+        await send_game_state_to_user(
+            db=db,
+            websocket=websocket,
+            room_code=room_code,
+            user_id=user.id,
+        )
+
         try:
             while True:
                 message = await websocket.receive_json()
 
                 await handle_message(
+                    db=db,
                     websocket=websocket,
                     room_code=room_code,
                     user_id=user.id,
@@ -87,6 +99,20 @@ async def websocket_endpoint(
                 room_code=room_code,
                 user_id=user.id,
             )
+
+            room = await room_repository.get_by_code(
+                db,
+                room_code,
+            )
+
+            if room is not None and room.status == "waiting":
+                await room_repository.set_player_ready(
+                    db,
+                    room_id=room.id,
+                    user_id=user.id,
+                    is_ready=False,
+                )
+
             await broadcast_room_state(
                 db=db,
                 room_code=room_code,
@@ -126,6 +152,8 @@ app.add_middleware(
 # ---------------------------------------------------------------------------
 app.include_router(auth_router)
 app.include_router(rooms_router)
+app.include_router(games_router)
+app.include_router(chat_router)
 
 
 # ---------------------------------------------------------------------------

@@ -35,6 +35,32 @@ class ConnectionManager:
         if not room_connections:
             self.active_connections.pop(room_code, None)
     
+    async def send_to_user(
+        self,
+        room_code: str,
+        user_id: int,
+        message: dict,
+    ) -> bool:
+        room_connections = self.active_connections.get(
+            room_code,
+            {},
+        )
+
+        websocket = room_connections.get(user_id)
+
+        if websocket is None:
+            return False
+
+        try:
+            await websocket.send_json(message)
+
+            return True
+
+        except Exception:
+            self.disconnect(room_code, user_id)
+
+            return False
+    
     async def broadcast_to_room(
         self,
         room_code: str,
@@ -45,7 +71,16 @@ class ConnectionManager:
             {},
         )
 
-        for websocket in room_connections.values():
-            await websocket.send_json(message)
+        dead_connections: list[int] = []
+
+        for user_id, websocket in room_connections.items():
+            try:
+                await websocket.send_json(message)
+
+            except Exception:
+                dead_connections.append(user_id)
+
+        for user_id in dead_connections:
+            self.disconnect(room_code, user_id)
 
 manager = ConnectionManager()

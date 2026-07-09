@@ -13,6 +13,7 @@ from app.db.base import Base
 from app.users.models import User
 from app.auth.models import AuthIdentity
 from app.rooms.models import Room, RoomPlayer
+from app.game_engine.models import Game, GamePlayer
 
 config = context.config
 

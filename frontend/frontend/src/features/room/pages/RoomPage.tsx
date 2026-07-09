@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAuthStore } from '../../../stores/authStore'
 import { useWebSocket } from '../../../hooks/useWebSocket'
@@ -9,29 +9,52 @@ export function RoomPage() {
   const { code } = useParams<{ code: string }>()
   const navigate = useNavigate()
   const { user, isAuthenticated } = useAuthStore()
-  const { lastRoomState, isConnected } = useWebSocket(code ?? null)
+  const {
+    lastRoomState,
+    lastGameStart,
+    isConnected,
+    sendMessage,
+  } = useWebSocket(code ?? null)
 
   const [room, setRoom] = useState<RoomResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+  const [leaveError, setLeaveError] = useState<string | null>(null)
+  const [isReady, setIsReady] = useState(false)
+  const hostAutoReady = useRef(false)
 
-  // Fetch room on mount (fallback for initial render before WS connects)
   useEffect(() => {
     if (!isAuthenticated || !code) return
-
     getRoom(code)
       .then(setRoom)
       .catch((err) => setError(err.message))
   }, [isAuthenticated, code])
 
-  // Update room state from WebSocket
+  // Host auto-ready: once WS is connected, mark host as ready
+  useEffect(() => {
+    if (!room || !user || !isConnected) return
+    if (user.id === room.host_id && !hostAutoReady.current) {
+      setIsReady(true)
+      sendMessage({ type: 'PLAYER_READY', payload: { ready: true } })
+      hostAutoReady.current = true
+    }
+  }, [room, user, isConnected, sendMessage])
+
+  // Update room data from WebSocket — don't overwrite local isReady
+  // (it's managed optimistically and the count formula reconciles with server)
   useEffect(() => {
     if (lastRoomState) {
       setRoom(lastRoomState.room)
     }
   }, [lastRoomState])
 
-  // Redirect if not authenticated
+  // Handle GAME_START → navigate to game page
+  useEffect(() => {
+    if (lastGameStart && code) {
+      navigate(`/game/${code}`, { replace: true })
+    }
+  }, [lastGameStart, code, navigate])
+
   if (!isAuthenticated) {
     navigate('/auth', { replace: true })
     return null
@@ -40,11 +63,11 @@ export function RoomPage() {
   if (error) {
     return (
       <div className="min-h-screen bg-gray-50 bg-grid flex items-center justify-center">
-        <div className="text-center max-w-md px-4">
+        <div className="text-center max-w-md px-4 animate-fade-in">
           <div className="text-sm font-mono tracking-wider text-gray-600 mb-2">
             <span className="text-accent">{'//'}</span> ERROR
           </div>
-          <p className="text-gray-800 font-mono text-sm mb-6">{error}</p>
+          <p className="text-gray-900 font-mono text-sm mb-6">{error}</p>
           <button
             onClick={() => navigate('/lobby', { replace: true })}
             className="px-4 py-2 border border-accent/50 text-sm font-mono rounded-md text-gray-900 bg-accent/10 hover:bg-accent/20 transition-all"
@@ -59,7 +82,7 @@ export function RoomPage() {
   if (!room || !code) {
     return (
       <div className="min-h-screen bg-gray-50 bg-grid flex items-center justify-center">
-        <div className="text-sm font-mono tracking-wider text-gray-600">
+        <div className="text-sm font-mono tracking-wider text-gray-600 animate-pulse">
           <span className="text-accent">{'//'}</span> LOADING ROOM...
         </div>
       </div>
@@ -69,6 +92,11 @@ export function RoomPage() {
   const players = lastRoomState?.players ?? []
   const isHost = user?.id === room.host_id
   const playerCount = players.length
+  // Optimistic ready count: server's view minus our server state plus our local state
+  const serverReadyCount = players.filter((p) => p.is_ready).length
+  const myServerReady = !!players.find((p) => p.id === user?.id)?.is_ready
+  const readyCount = serverReadyCount - (myServerReady ? 1 : 0) + (isReady ? 1 : 0)
+  const hostPlayer = players.find((p) => p.id === room.host_id)
 
   const handleCopyCode = () => {
     navigator.clipboard.writeText(code)
@@ -76,25 +104,32 @@ export function RoomPage() {
     setTimeout(() => setCopied(false), 2000)
   }
 
+  const handleToggleReady = () => {
+    // Optimistic update: flip locally immediately
+    const next = !isReady
+    setIsReady(next)
+    sendMessage({ type: 'PLAYER_READY', payload: { ready: next } })
+  }
+
   const handleLeave = async () => {
+    setLeaveError(null)
     try {
       await leaveRoom(code)
       navigate('/lobby', { replace: true })
-    } catch {
-      // Navigate anyway
-      navigate('/lobby', { replace: true })
+    } catch (err) {
+      setLeaveError(err instanceof Error ? err.message : 'Failed to leave room')
     }
   }
 
   const handleStartGame = () => {
-    // TODO: POST /api/v1/games — start the game
+    // TODO: POST /api/v1/games/{code}/start — the backend will broadcast GAME_START
   }
 
   return (
     <div className="min-h-screen bg-gray-50 bg-grid">
       <div className="max-w-2xl mx-auto px-4 py-12">
         {/* Room header */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-8 animate-fade-in-up">
           <div className="text-sm font-mono tracking-wider text-gray-600 mb-2">
             <span className="text-accent">{'//'}</span> ROOM
           </div>
@@ -116,48 +151,75 @@ export function RoomPage() {
 
           {/* Room meta */}
           <div className="flex items-center justify-center gap-4 mt-4 text-xs font-mono text-gray-600">
-            <span className={isConnected ? 'text-green-600' : 'text-red-600'}>
-              {isConnected ? 'CONNECTED' : 'DISCONNECTED'}
+            <span className="flex items-center gap-1.5">
+              <span
+                className={`inline-block w-2 h-2 rounded-full ${
+                  isConnected ? 'bg-green-500 animate-pulse-dot' : 'bg-red-500'
+                }`}
+              />
+              {isConnected ? 'ONLINE' : 'OFFLINE'}
             </span>
-            <span>|</span>
-            <span>{playerCount}/{room.max_players} PLAYERS</span>
-            <span>|</span>
-            <span>STATUS: {room.status.toUpperCase()}</span>
-            <span>|</span>
-            <span>{isHost ? 'YOU ARE HOST' : 'HOST: Player ' + room.host_id}</span>
+            <span className="text-gray-500">|</span>
+            <span>
+              {playerCount}/{room.max_players}
+            </span>
+            <span className="text-gray-500">|</span>
+            <span>
+              <span className={readyCount === playerCount ? 'text-green-500' : ''}>{readyCount}</span>/{playerCount}
+            </span>
+            <span className="text-gray-500">|</span>
+            <span>
+              {isHost ? (
+                <span className="text-accent">HOST</span>
+              ) : (
+                <span>HOST: {hostPlayer?.username ?? room.host_id}</span>
+              )}
+            </span>
           </div>
         </div>
 
         {/* Player list */}
-        <div className="border border-gray-400/30 rounded overflow-hidden">
-          <div className="bg-gray-100 px-4 py-2 border-b border-gray-400/20">
+        <div className="border border-gray-400/30 rounded overflow-hidden animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
+          <div className="bg-gray-100 px-4 py-2 border-b border-gray-400/20 flex items-center justify-between">
             <span className="text-xs font-mono tracking-wider text-gray-600">PLAYERS</span>
+            <span className="text-xs font-mono text-gray-600">{readyCount}/{playerCount} READY</span>
           </div>
           <div className="divide-y divide-gray-400/10">
-            {players.map((p) => (
+            {players.map((p, i) => (
               <div
                 key={p.id}
-                className="flex items-center justify-between px-4 py-3"
+                className="flex items-center justify-between px-4 py-3 animate-fade-in"
+                style={{ animationDelay: `${0.15 + i * 0.05}s` }}
               >
                 <div className="flex items-center gap-3">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-mono font-bold
-                    ${p.id === room.host_id ? 'bg-accent/20 text-accent border border-accent/40' : 'bg-gray-200 text-gray-700'}`}
+                  <div
+                    className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-mono font-bold
+                      ${p.id === room.host_id
+                        ? 'bg-accent/20 text-accent border border-accent/40'
+                        : 'bg-gray-200 text-gray-700'}`}
                   >
                     {p.username.charAt(0).toUpperCase()}
                   </div>
                   <div className="text-sm font-mono text-gray-900">{p.username}</div>
                   {p.id === room.host_id && (
-                    <span className="text-xs font-mono text-accent tracking-wider">[HOST]</span>
+                    <span className="text-[10px] font-mono text-accent/70 tracking-wider border border-accent/20 rounded px-1">HOST</span>
+                  )}
+                  {p.id === user?.id && p.id !== room.host_id && (
+                    <span className="text-[10px] font-mono text-gray-600 border border-gray-400/20 rounded px-1">YOU</span>
                   )}
                 </div>
-                {p.id === user?.id && (
-                  <span className="text-xs font-mono text-gray-500">YOU</span>
-                )}
+                <div className="flex items-center gap-2">
+                  {((p.id === user?.id) ? isReady : p.is_ready) ? (
+                    <span className="text-xs font-mono text-green-500/80 tracking-wider">READY</span>
+                  ) : (
+                    <span className="text-xs font-mono text-gray-600">WAITING</span>
+                  )}
+                </div>
               </div>
             ))}
 
             {players.length === 0 && (
-              <div className="px-4 py-6 text-center text-xs font-mono text-gray-500">
+              <div className="px-4 py-6 text-center text-xs font-mono text-gray-600">
                 Waiting for players...
               </div>
             )}
@@ -165,25 +227,52 @@ export function RoomPage() {
         </div>
 
         {/* Actions */}
-        <div className="mt-8 space-y-3">
+        <div className="mt-8 space-y-3 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
+          {/* Ready toggle — non-host only */}
+          {!isHost && (
+            <button
+              onClick={handleToggleReady}
+              className={`w-full py-3 border rounded text-sm font-mono tracking-wider transition-all
+                ${isReady
+                  ? 'border-green-500/50 bg-green-500/10 text-green-500 hover:bg-green-500/20 glow-green'
+                  : 'border-gray-400/30 bg-gray-100 text-gray-600 hover:border-gray-400 hover:text-gray-900'}`}
+            >
+              {isReady ? '✓ READY' : 'CLICK WHEN READY'}
+            </button>
+          )}
+
+          {/* Start game — host only */}
           {isHost && (
             <button
               onClick={handleStartGame}
-              disabled={playerCount < 2}
+              disabled={playerCount < 3}
               className="w-full py-3 border border-accent/50 rounded text-sm font-mono tracking-wider text-gray-900 bg-accent/10 hover:bg-accent/20 disabled:opacity-40 disabled:cursor-not-allowed transition-all glow-red"
             >
               START GAME
             </button>
           )}
-          {!isHost && (
-            <div className="text-center text-xs font-mono text-gray-500 py-2">
-              Waiting for host to start the game...
+
+          {/* Leave error */}
+          {leaveError && (
+            <div className="p-3 bg-red-900/20 border border-red-500/30 rounded animate-slide-down">
+              <p className="text-xs font-mono text-red-400 text-center">{leaveError}</p>
             </div>
           )}
 
+          {/* Host cannot leave */}
+          {isHost && (
+            <div className="p-3 bg-yellow-900/20 border border-yellow-500/30 rounded">
+              <p className="text-xs font-mono text-yellow-400 text-center">
+                You are the host. You cannot leave without transferring host or closing the room.
+              </p>
+            </div>
+          )}
+
+          {/* Leave */}
           <button
             onClick={handleLeave}
-            className="w-full py-2 border border-gray-400/30 rounded text-xs font-mono text-gray-600 hover:text-red-600 hover:border-red-600/30 transition-colors"
+            disabled={isHost}
+            className="w-full py-2 border border-gray-400/30 rounded text-xs font-mono text-gray-600 hover:text-red-600 hover:border-red-600/30 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             LEAVE ROOM
           </button>

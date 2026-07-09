@@ -8,9 +8,13 @@ from app.users.models import User
 from app.users.repository import get_by_id
 from app.rooms import repository as room_repository
 from app.websocket.manager import manager
+from app.game_engine import repository as game_repository
+from app.chat import repository as chat_repository
+from app.users import repository as user_repository
 
 
 async def handle_message(
+    db: AsyncSession,
     websocket: WebSocket,
     room_code: str,
     user_id: int,
@@ -25,6 +29,100 @@ async def handle_message(
                 "message": "Missing event type",
             }
         )
+        return
+
+    if event_type == "PLAYER_READY":
+        ready = message.get("payload", {}).get(
+            "ready"
+        )
+
+        if not isinstance(ready, bool):
+            await websocket.send_json(
+                {
+                    "type": "ERROR",
+                    "message": (
+                        "PLAYER_READY requires "
+                        "payload.ready as boolean"
+                    ),
+                }
+            )
+            return
+
+        room = await room_repository.get_by_code(
+            db,
+            room_code,
+        )
+
+        if room is None:
+            await websocket.send_json(
+                {
+                    "type": "ERROR",
+                    "message": "Room not found",
+                }
+            )
+            return
+
+        await room_repository.set_player_ready(
+            db,
+            room_id=room.id,
+            user_id=user_id,
+            is_ready=ready,
+        )
+
+        await broadcast_room_state(
+            db=db,
+            room_code=room_code,
+        )
+
+        return
+
+    if event_type == "SEND_MESSAGE":
+        content = message.get("content", "")
+
+        if not content or not content.strip():
+            await websocket.send_json(
+                {
+                    "type": "ERROR",
+                    "message": "SEND_MESSAGE requires non-empty content",
+                }
+            )
+            return
+
+        room = await room_repository.get_by_code(db, room_code)
+
+        if room is None:
+            await websocket.send_json(
+                {
+                    "type": "ERROR",
+                    "message": "Room not found",
+                }
+            )
+            return
+
+        chat_message = await chat_repository.create_message(
+            db,
+            room_id=room.id,
+            user_id=user_id,
+            content=content.strip(),
+        )
+
+        sender = await user_repository.get_by_id(db, user_id)
+        username = sender.username if sender else str(user_id)
+
+        await manager.broadcast_to_room(
+            room_code=room_code,
+            message={
+                "type": "MESSAGE_SENT",
+                "message": {
+                    "id": chat_message.id,
+                    "user_id": user_id,
+                    "username": username,
+                    "content": content.strip(),
+                    "created_at": chat_message.created_at.isoformat(),
+                },
+            },
+        )
+
         return
 
     await websocket.send_json(
@@ -93,7 +191,7 @@ async def broadcast_room_state(
     if room is None:
         return
 
-    players = await room_repository.get_players(
+    players = await room_repository.get_players_with_ready_state(
         db,
         room_id=room.id,
     )
@@ -112,12 +210,68 @@ async def broadcast_room_state(
             {
                 "id": player.id,
                 "username": player.username,
+                "is_ready": is_ready,
             }
-            for player in players
+            for player, is_ready in players
         ],
     }
 
     await manager.broadcast_to_room(
         room_code=room_code,
         message=message,
+    )
+
+async def send_game_state_to_user(
+    db: AsyncSession,
+    websocket: WebSocket,
+    room_code: str,
+    user_id: int,
+) -> None:
+    room = await room_repository.get_by_code(
+        db,
+        room_code,
+    )
+
+    if room is None:
+        return
+
+    if room.status != "in_game":
+        return
+
+    game = await game_repository.get_by_room_id(
+        db,
+        room_id=room.id,
+    )
+
+    if game is None:
+        return
+
+    game_player = await game_repository.get_game_player(
+        db,
+        game_id=game.id,
+        user_id=user_id,
+    )
+
+    if game_player is None:
+        return
+
+    await websocket.send_json(
+        {
+            "type": "GAME_STATE",
+            "game": {
+                "id": game.id,
+                "status": game.status,
+                "round_number": game.round_number,
+                "phase": game.phase,
+            },
+        }
+    )
+
+    await websocket.send_json(
+        {
+            "type": "ROLE_ASSIGNMENT",
+            "game_id": game.id,
+            "role": game_player.role,
+            "score": game_player.score,
+        }
     )

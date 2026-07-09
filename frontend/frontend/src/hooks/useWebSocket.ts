@@ -1,20 +1,38 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useAuthStore } from '../stores/authStore'
-import type { RoomStateEvent, WsClientEvent } from '../features/room/types/room.types'
+import type {
+  RoomStateEvent,
+  WsClientEvent,
+  WsServerEvent,
+  GameStartEvent,
+  RoleAssignmentEvent,
+  PhaseChangedEvent,
+} from '../features/room/types/room.types'
+import type { GameStateEvent } from '../features/room/types/game.types'
+import type { ChatMessage } from '../features/chat/types/chat.types'
 
 interface UseWebSocketResult {
   isConnected: boolean
   lastRoomState: RoomStateEvent | null
+  lastGameStart: GameStartEvent | null
+  lastRoleAssignment: RoleAssignmentEvent | null
+  lastPhaseChanged: PhaseChangedEvent | null
+  lastGameState: GameStateEvent | null
+  chatMessages: ChatMessage[]
   sendMessage: (event: WsClientEvent) => void
 }
 
 export function useWebSocket(roomCode: string | null): UseWebSocketResult {
   const [isConnected, setIsConnected] = useState(false)
   const [lastRoomState, setLastRoomState] = useState<RoomStateEvent | null>(null)
+  const [lastGameStart, setLastGameStart] = useState<GameStartEvent | null>(null)
+  const [lastRoleAssignment, setLastRoleAssignment] = useState<RoleAssignmentEvent | null>(null)
+  const [lastPhaseChanged, setLastPhaseChanged] = useState<PhaseChangedEvent | null>(null)
+  const [lastGameState, setLastGameState] = useState<GameStateEvent | null>(null)
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
   const wsRef = useRef<WebSocket | null>(null)
   const tokenRef = useRef<string | null>(null)
 
-  // Keep token ref updated without re-triggering the effect
   useEffect(() => {
     const unsub = useAuthStore.subscribe((state) => {
       tokenRef.current = state.token
@@ -33,6 +51,11 @@ export function useWebSocket(roomCode: string | null): UseWebSocketResult {
     if (!roomCode) {
       setIsConnected(false)
       setLastRoomState(null)
+      setLastGameStart(null)
+      setLastRoleAssignment(null)
+      setLastPhaseChanged(null)
+      setLastGameState(null)
+      setChatMessages([])
       return
     }
 
@@ -52,9 +75,26 @@ export function useWebSocket(roomCode: string | null): UseWebSocketResult {
 
       ws.onmessage = (event) => {
         try {
-          const data = JSON.parse(event.data) as RoomStateEvent
-          if (data.type === 'ROOM_STATE') {
-            setLastRoomState(data)
+          const data = JSON.parse(event.data) as WsServerEvent
+          switch (data.type) {
+            case 'ROOM_STATE':
+              setLastRoomState(data)
+              break
+            case 'GAME_START':
+              setLastGameStart(data)
+              break
+            case 'ROLE_ASSIGNMENT':
+              setLastRoleAssignment(data)
+              break
+            case 'PHASE_CHANGED':
+              setLastPhaseChanged(data)
+              break
+            case 'GAME_STATE':
+              setLastGameState(data)
+              break
+            case 'MESSAGE_SENT':
+              setChatMessages((prev) => [...prev, data.message])
+              break
           }
         } catch {
           // ignore malformed messages
@@ -82,5 +122,14 @@ export function useWebSocket(roomCode: string | null): UseWebSocketResult {
     }
   }, [roomCode])
 
-  return { isConnected, lastRoomState, sendMessage }
+  return {
+    isConnected,
+    lastRoomState,
+    lastGameStart,
+    lastRoleAssignment,
+    lastPhaseChanged,
+    lastGameState,
+    chatMessages,
+    sendMessage,
+  }
 }

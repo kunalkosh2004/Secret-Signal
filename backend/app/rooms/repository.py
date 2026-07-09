@@ -106,3 +106,62 @@ async def get_players(
     )
 
     return list(result.scalars().all())
+
+async def set_player_ready(
+    db: AsyncSession,
+    room_id: int,
+    user_id: int,
+    is_ready: bool,
+) -> RoomPlayer:
+    player = await get_player(
+        db,
+        room_id=room_id,
+        user_id=user_id,
+    )
+
+    if player is None:
+        raise ValueError(
+            "User is not in this room"
+        )
+
+    player.is_ready = is_ready
+
+    await db.commit()
+    await db.refresh(player)
+
+    return player
+
+async def get_players_with_ready_state(
+    db: AsyncSession,
+    room_id: int,
+) -> list[tuple[User, bool]]:
+    result = await db.execute(
+        select(
+            User,
+            RoomPlayer.is_ready,
+        )
+        .join(
+            RoomPlayer,
+            RoomPlayer.user_id == User.id,
+        )
+        .where(
+            RoomPlayer.room_id == room_id
+        )
+        .order_by(
+            RoomPlayer.joined_at.asc()
+        )
+    )
+
+    return list(result.all())
+
+async def get_by_id(
+    db: AsyncSession,
+    room_id: int,
+) -> Optional[Room]:
+    result = await db.execute(
+        select(Room).where(
+            Room.id == room_id
+        )
+    )
+
+    return result.scalar_one_or_none()

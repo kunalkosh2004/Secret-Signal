@@ -4,48 +4,45 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Integer,
-    JSON,
     String,
     UniqueConstraint,
-    Boolean
 )
 
 from app.db.base import Base
 
-class Room(Base):
-    __tablename__ = "rooms"
 
-    id = Column(Integer, primary_key=True, index=True)
+class Game(Base):
+    __tablename__ = "games"
 
-    code = Column(
-        String(6),
-        unique=True,
-        nullable=False,
+    id = Column(
+        Integer,
+        primary_key=True,
         index=True,
     )
 
-    host_id = Column(
+    room_id = Column(
         Integer,
-        ForeignKey("users.id"),
+        ForeignKey("rooms.id", ondelete="CASCADE"),
         nullable=False,
+        index=True,
     )
 
     status = Column(
         String(20),
         nullable=False,
-        default="waiting",
+        default="active",
     )
 
-    max_players = Column(
+    round_number = Column(
         Integer,
         nullable=False,
-        default=8,
+        default=1,
     )
 
-    settings = Column(
-        JSON,
+    phase = Column(
+        String(30),
         nullable=False,
-        default=dict,
+        default="role_assignment",
     )
 
     created_at = Column(
@@ -54,14 +51,19 @@ class Room(Base):
         nullable=False,
     )
 
-class RoomPlayer(Base):
-    __tablename__ = "room_players"
 
-    id = Column(Integer, primary_key=True, index=True)
+class GamePlayer(Base):
+    __tablename__ = "game_players"
 
-    room_id = Column(
+    id = Column(
         Integer,
-        ForeignKey("rooms.id", ondelete="CASCADE"),
+        primary_key=True,
+        index=True,
+    )
+
+    game_id = Column(
+        Integer,
+        ForeignKey("games.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
@@ -73,23 +75,27 @@ class RoomPlayer(Base):
         index=True,
     )
 
+    role = Column(
+        String(30),
+        nullable=False,
+    )
+
+    score = Column(
+        Integer,
+        nullable=False,
+        default=0,
+    )
+
     joined_at = Column(
         DateTime(timezone=True),
         server_default=func.now(),
         nullable=False,
     )
 
-    is_ready = Column(
-        Boolean,
-        nullable=False,
-        default=False,
-        server_default="false",
-    )
-
     __table_args__ = (
         UniqueConstraint(
-            "room_id",
+            "game_id",
             "user_id",
-            name="uq_room_player",
+            name="uq_game_player",
         ),
     )

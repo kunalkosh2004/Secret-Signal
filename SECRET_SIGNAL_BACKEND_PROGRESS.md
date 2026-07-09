@@ -1,1040 +1,647 @@
-# Secret Signal Backend --- Authentication Progress
+# Secret Signal Backend --- Development Progress
 
-This document summarizes the backend authentication work completed so
-far for the **Secret Signal** project.
+## Overview
 
-## 1. Backend and Database Setup
+This document summarizes the backend work completed so far for **Secret
+Signal**.
 
-The FastAPI backend is running from the `backend` directory with:
+The backend currently supports authentication, PostgreSQL persistence,
+room management, authenticated WebSockets, real-time room state, player
+readiness, game creation, role assignment, game start, phase
+transitions, phase broadcasts, and active-game reconnect recovery.
+
+The current roadmap position is near the end of **Phase 2.1 --- Backend
+Game State Machine**.
+
+------------------------------------------------------------------------
+
+## 1. Backend Foundation
+
+### Technology stack
+
+-   FastAPI
+-   PostgreSQL
+-   SQLAlchemy AsyncSession
+-   Alembic
+-   Pydantic
+-   JWT authentication
+-   WebSockets
+-   Docker Compose
+-   Redis container prepared for later use
+
+Typical development server command:
 
 ``` bash
-python3 -m uvicorn app.main:app --reload
+source .venv/bin/activate
+python3 -m uvicorn app.main:app --reload --reload-exclude '.venv/**'
 ```
 
-The application currently runs at:
-
-``` text
-http://127.0.0.1:8000
-```
-
-The PostgreSQL database runs in Docker.
-
-Current development database configuration:
-
-``` text
-Database: secret_signal
-User: postgres
-Host: localhost
-Port: 5432
-```
-
-The database connection uses SQLAlchemy's async PostgreSQL driver:
-
-``` text
-postgresql+asyncpg://...
-```
-
-Database connectivity was tested successfully using an async SQLAlchemy
-connection and `SELECT 1`.
-
-The PostgreSQL container can be accessed with:
-
-``` bash
-docker exec -it secret_signal_postgres \
-  psql -U postgres -d secret_signal
-```
-
-Useful PostgreSQL commands:
-
-``` sql
-\dt
-\d users
-\d auth_identities
-
-SELECT id, username, email, is_active, is_verified, created_at
-FROM users
-ORDER BY id;
-
-SELECT id, user_id, provider, provider_subject, provider_email
-FROM auth_identities
-ORDER BY id;
-
-\q
-```
+The `.venv` exclusion prevents WatchFiles from repeatedly restarting the
+server because of changes detected inside installed packages.
 
 ------------------------------------------------------------------------
 
-## 2. Application Configuration
+## 2. Authentication System
 
-The project uses a Pydantic `Settings` class in:
+Completed work includes:
 
-``` text
-app/core/config.py
-```
+-   User model
+-   AuthIdentity model
+-   Signup flow
+-   Login flow
+-   Password hashing
+-   JWT access-token creation and decoding
+-   Protected FastAPI routes
+-   `get_current_user` dependency
+-   Google authentication dependency/setup work
 
-Configuration currently includes:
-
--   `DATABASE_URL`
--   `secret_key`
--   `algorithm`
--   `access_token_expire_minutes`
--   `google_client_id`
--   `google_client_secret`
--   `google_redirect_uri`
--   `google_link_redirect_uri`
--   `frontend_url`
--   `redis_url`
--   `debug`
-
-Sensitive values such as the JWT secret, Google client ID, and Google
-client secret should be stored in `.env`, not committed in source code.
-
-Example:
-
-``` env
-DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/secret_signal
-secret_key=YOUR_SECRET_KEY
-google_client_id=YOUR_GOOGLE_CLIENT_ID
-google_client_secret=YOUR_GOOGLE_CLIENT_SECRET
-google_redirect_uri=http://localhost:8000/api/v1/auth/google/callback
-google_link_redirect_uri=http://localhost:8000/api/v1/auth/google/link/callback
-redis_url=redis://localhost:6379/0
-```
-
-The `.env` file should be included in `.gitignore`.
+Protected HTTP routes use the authenticated user dependency. WebSocket
+authentication validates the JWT during connection setup, extracts the
+user ID, loads the user, and then verifies room membership.
 
 ------------------------------------------------------------------------
 
-## 3. SQLAlchemy Base and Async Session
+## 3. Database and Infrastructure
 
-The shared SQLAlchemy declarative base is defined in:
+Docker Compose is used for PostgreSQL and Redis.
 
-``` text
-app/db/base.py
-```
-
-The async engine, session factory, and `get_db` dependency are defined
-in:
+Containers:
 
 ``` text
-app/db/session.py
+secret_signal_postgres
+secret_signal_redis
 ```
 
-The database session module was imported and tested successfully.
+PostgreSQL was tested directly with `psql`, and Alembic is used for
+schema migrations.
+
+Models registered with Alembic include:
+
+-   User
+-   AuthIdentity
+-   Room
+-   RoomPlayer
+-   Game
+-   GamePlayer
 
 ------------------------------------------------------------------------
 
-## 4. User Model
+## 4. Room System
 
-The `users` table is represented by:
+### Room model
 
-``` text
-app/users/models.py
-```
-
-The model includes fields equivalent to:
+The Room model contains:
 
 -   `id`
--   `username`
--   `email`
--   `password_hash`
--   `is_active`
--   `is_verified`
+-   `code`
+-   `host_id`
+-   `status`
+-   `max_players`
+-   `settings`
 -   `created_at`
--   `updated_at`
 
-Important design rule:
+Room codes are secure random six-character uppercase alphanumeric
+values.
 
-> Plaintext passwords are never stored. Only password hashes are stored
-> in `password_hash`.
+### RoomPlayer model
 
-Google-only users may have a null `password_hash`.
-
-The User repository was tested successfully for:
-
--   create user
--   get by ID
--   get by email
--   get by username
-
-The repository test successfully inserted and queried a test user from
-PostgreSQL.
-
-------------------------------------------------------------------------
-
-## 5. User and Authentication Schemas
-
-User response schemas were implemented in:
-
-``` text
-app/users/schemas.py
-```
-
-Password hashes and internal database fields are not returned in API
-responses.
-
-Authentication schemas were implemented in:
-
-``` text
-app/auth/schemas.py
-```
-
-The main request/response contracts include:
-
-### SignupRequest
-
-Contains:
-
--   `username`
--   `email`
--   `password`
-
-### LoginRequest
-
-Contains:
-
--   `email`
--   `password`
-
-### TokenResponse
-
-Contains:
-
--   `access_token`
--   `token_type`
--   `user`
-
-Emails are normalized to lowercase in the authentication service.
-
-------------------------------------------------------------------------
-
-## 6. Password Hashing and JWT Authentication
-
-Security utilities are implemented in:
-
-``` text
-app/auth/security.py
-```
-
-The module provides:
-
-``` text
-hash_password()
-verify_password()
-create_access_token()
-decode_access_token()
-```
-
-Password hashing uses bcrypt/passlib.
-
-JWT tokens use the configured secret key and algorithm, currently HS256.
-
-JWT payloads use the `sub` claim for the local user ID and include an
-expiration time.
-
-A JWT round-trip test was completed successfully:
-
-``` text
-create token → decode token → recover payload
-```
-
-Because the local environment uses Python 3.9, type annotations were
-adjusted to avoid Python 3.10-only union syntax such as:
-
-``` python
-int | None
-```
-
-where necessary.
-
-------------------------------------------------------------------------
-
-## 7. Authentication Service
-
-Authentication business logic is implemented in:
-
-``` text
-app/auth/service.py
-```
-
-### Signup flow
-
-The signup service performs:
-
-``` text
-normalize email
-    ↓
-check email uniqueness
-    ↓
-check username uniqueness
-    ↓
-hash password
-    ↓
-create user
-    ↓
-create JWT
-    ↓
-return TokenResponse
-```
-
-### Login flow
-
-The login service performs:
-
-``` text
-normalize email
-    ↓
-find user by email
-    ↓
-verify password
-    ↓
-create JWT
-    ↓
-return TokenResponse
-```
-
-OAuth-only accounts with no password hash cannot log in using the
-password login endpoint.
-
-------------------------------------------------------------------------
-
-## 8. Application Exceptions
-
-Custom application exceptions are defined in:
-
-``` text
-app/core/exceptions.py
-```
-
-Implemented exception types include:
-
-  Exception               HTTP Status
-  --------------------- -------------
-  `NotFoundError`                 404
-  `ConflictError`                 409
-  `UnauthorizedError`             401
-  `ForbiddenError`                403
-  `ValidationError`               422
-
-A global FastAPI exception handler was added to:
-
-``` text
-app/main.py
-```
-
-The handler converts `AppException` subclasses into JSON HTTP responses.
-
-------------------------------------------------------------------------
-
-## 9. Authentication Dependencies
-
-Authentication dependencies are implemented in:
-
-``` text
-app/auth/dependencies.py
-```
-
-The project uses bearer-token authentication.
-
-The main dependency flow is:
-
-``` text
-Authorization: Bearer <JWT>
-        ↓
-OAuth2PasswordBearer
-        ↓
-decode_access_token()
-        ↓
-read sub claim
-        ↓
-load user from database
-        ↓
-return current User
-```
-
-The project also has active-user authorization logic to reject inactive
-users.
-
-The `/me` endpoint uses the authenticated user dependency.
-
-------------------------------------------------------------------------
-
-## 10. Authentication Routes
-
-Authentication routes are defined in:
-
-``` text
-app/auth/router.py
-```
-
-The router prefix is:
-
-``` text
-/api/v1/auth
-```
-
-Implemented or wired routes include:
-
-``` text
-POST /signup
-POST /login
-POST /logout
-GET  /me
-GET  /google/login
-GET  /google/callback
-GET  /google/link
-GET  /google/link/callback
-```
-
-### Logout behavior
-
-The current system uses short-lived stateless JWTs without a
-refresh-token store or access-token blacklist.
-
-Therefore logout currently means:
-
-``` text
-frontend deletes access token
-    ↓
-frontend clears authenticated state
-    ↓
-frontend redirects user
-```
-
-The backend logout route returns a successful response, but an
-already-issued JWT remains valid until expiration.
-
-------------------------------------------------------------------------
-
-## 11. Alembic Database Migrations
-
-Alembic was installed and initialized.
-
-Created structure:
-
-``` text
-alembic/
-├── versions/
-├── env.py
-├── README
-└── script.py.mako
-
-alembic.ini
-```
-
-`alembic/env.py` was configured for:
-
--   async SQLAlchemy
--   the application database URL
--   shared `Base.metadata`
--   User model registration
--   AuthIdentity model registration
-
-An initial baseline migration was created:
-
-``` text
-08bd7494cde1
-```
-
-Because the `users` table already existed and matched the SQLAlchemy
-model, the initial migration was empty and the database was stamped to
-the revision.
-
-The workflow from now on is:
-
-``` text
-change SQLAlchemy model
-        ↓
-python3 -m alembic revision --autogenerate -m "description"
-        ↓
-review migration
-        ↓
-python3 -m alembic upgrade head
-```
-
-------------------------------------------------------------------------
-
-## 12. AuthIdentity Model
-
-The Google OAuth identity model is defined in:
-
-``` text
-app/auth/models.py
-```
-
-The `auth_identities` table contains:
+The RoomPlayer model stores:
 
 -   `id`
+-   `room_id`
 -   `user_id`
--   `provider`
--   `provider_subject`
--   `provider_email`
--   `created_at`
+-   `joined_at`
+-   `is_ready`
 
-The table has:
+A unique constraint prevents duplicate membership for the same user and
+room.
 
--   foreign key from `user_id` to `users.id`
--   cascade delete behavior
--   index on `user_id`
--   unique constraint on `(provider, provider_subject)`
+### Room repository
 
-The `provider_subject` stores the OpenID Connect `sub` claim.
+Implemented repository functions include:
 
-The Google `sub` is used for identity linking instead of relying on
-email because it is the stable provider identifier.
+-   `get_by_code`
+-   `get_by_id`
+-   `create`
+-   `add_player`
+-   `remove_player`
+-   `get_player`
+-   `count_players`
+-   `get_players`
+-   `get_players_with_ready_state`
+-   `set_player_ready`
 
-The migration for the auth identity table was generated and applied
-successfully.
+### Room service
 
-------------------------------------------------------------------------
+Create-room logic generates a unique room code, creates the room, and
+automatically adds the host.
 
-## 13. Auth Identity Repository
+Join-room logic checks that the room exists, is waiting, is not full,
+and that the user is not already a member.
 
-The auth repository is implemented in:
+Leave-room logic checks membership and prevents the host from leaving
+through the normal player-leave path.
 
-``` text
-app/auth/repository.py
-```
+### Room REST API
 
-Implemented operations:
-
-``` text
-get_identity()
-create_identity()
-```
-
-The repository was tested against PostgreSQL successfully.
-
-Tested flow:
+Implemented routes:
 
 ``` text
-existing local user
-        ↓
-create Google AuthIdentity
-        ↓
-commit
-        ↓
-query by provider + provider_subject
-        ↓
-retrieve linked user ID
-```
-
-The successful test created an identity and retrieved it correctly.
-
-------------------------------------------------------------------------
-
-## 14. Google OAuth Configuration
-
-Google OAuth credentials were created through Google Cloud.
-
-The OAuth client type is:
-
-``` text
-Web application
-```
-
-Authorized redirect URIs include the login callback and link callback:
-
-``` text
-http://localhost:8000/api/v1/auth/google/callback
-http://localhost:8000/api/v1/auth/google/link/callback
-```
-
-The client ID and client secret are loaded from environment variables.
-
-------------------------------------------------------------------------
-
-## 15. Google OAuth Schemas
-
-OAuth provider schemas are defined in:
-
-``` text
-app/auth/oauth/schemas.py
-```
-
-`GoogleUserInfo` contains:
-
--   `sub`
--   `email`
--   `email_verified`
--   `name`
--   `picture`
-
-The schema was implemented and tested.
-
-------------------------------------------------------------------------
-
-## 16. Google Authorization URL
-
-Google OAuth logic is implemented in:
-
-``` text
-app/auth/oauth/google.py
-```
-
-`build_authorization_url()` builds the Google authorization URL with:
-
--   client ID
--   redirect URI
--   response type `code`
--   scopes `openid email profile`
--   CSRF state
--   offline access settings
--   consent prompt
-
-The Google login route generates a cryptographically random state and
-redirects the browser to Google.
-
-The redirect flow was tested successfully.
-
-------------------------------------------------------------------------
-
-## 17. Google Code Exchange and ID Token Verification
-
-The project uses:
-
--   `httpx`
--   `google-auth`
-
-The OAuth callback logic:
-
-``` text
-authorization code
-        ↓
-POST to Google token endpoint
-        ↓
-receive ID token
-        ↓
-verify signed ID token
-        ↓
-validate audience and token claims
-        ↓
-extract verified Google user information
-```
-
-The Google verification module imported successfully.
-
-The local environment emitted warnings because:
-
--   Python 3.9 is end-of-life
--   the system Python SSL module uses an older LibreSSL version
-
-These warnings did not block the current development flow, but upgrading
-to a modern Python environment is recommended.
-
-------------------------------------------------------------------------
-
-## 18. Google Login Account Policy
-
-The chosen policy is:
-
-> Do not automatically link a Google account to an existing password
-> account merely because the emails match.
-
-Current intended behavior:
-
-``` text
-Google identity already linked
-        ↓
-log in linked user
-
-
-Google identity not linked
-        ↓
-email belongs to existing local account?
-        ├── yes → reject Google login; user must log in normally first
-        └── no  → create OAuth-only user and Google identity
-```
-
-This avoids automatic account linking based only on matching email.
-
-------------------------------------------------------------------------
-
-## 19. Unique Username Generation for OAuth Users
-
-A helper was added to generate a unique username from a Google email.
-
-Example:
-
-``` text
-kunal@example.com
-        ↓
-try kunal
-        ↓ occupied
-try kunal_1
-        ↓ occupied
-try kunal_2
-        ↓ available
-```
-
-The helper respects the 30-character username limit.
-
-------------------------------------------------------------------------
-
-## 20. Google Callback Service
-
-The Google callback service handles:
-
-``` text
-verify Google authorization code
-        ↓
-get verified GoogleUserInfo
-        ↓
-find AuthIdentity by Google sub
-        ↓
-if identity exists:
-    load linked user
-    issue application JWT
-
-if identity does not exist:
-    check local email collision
-    reject if local account already exists
-    otherwise generate username
-    create OAuth-only user
-    create AuthIdentity
-    issue application JWT
-```
-
-The callback route was wired and the browser OAuth flow was tested.
-
-------------------------------------------------------------------------
-
-## 21. Redis Setup
-
-Redis is running in Docker and was tested with:
-
-``` text
-PONG
-```
-
-Python Redis support uses the async Redis client.
-
-Redis configuration is located in:
-
-``` text
-app/core/redis.py
-```
-
-The Redis connection was tested successfully by:
-
-``` text
-PING
-SET key
-GET key
+POST /api/v1/rooms
+POST /api/v1/rooms/join
+GET  /api/v1/rooms/{code}
+POST /api/v1/rooms/{code}/leave
 ```
 
 ------------------------------------------------------------------------
 
-## 22. OAuth State Protection
+## 5. WebSocket Room System
 
-OAuth login state is stored in Redis with a short expiration time.
+The WebSocket system is centered around:
+
+``` text
+app/websocket/manager.py
+app/websocket/handlers.py
+```
+
+The connection manager tracks sockets by room code and user ID, supports
+room broadcasts, and supports private messages to individual users.
+
+Connection flow:
+
+``` text
+Client connects with token and room_code
+        ↓
+JWT is decoded
+        ↓
+User is loaded
+        ↓
+Room membership is verified
+        ↓
+Connection is accepted
+```
+
+The backend broadcasts authoritative `ROOM_STATE` events containing room
+details and player readiness.
+
+------------------------------------------------------------------------
+
+## 6. PLAYER_READY --- Roadmap 2.1.6
+
+The `PLAYER_READY` feature is implemented and tested.
+
+Client event:
+
+``` json
+{
+  "type": "PLAYER_READY",
+  "payload": {
+    "ready": true
+  }
+}
+```
 
 Flow:
 
 ``` text
-/google/login
+Receive PLAYER_READY
         ↓
-generate random state
+Validate payload.ready is boolean
         ↓
-store oauth_state:<state> in Redis
+Load room
         ↓
-TTL: 5 minutes
+Update RoomPlayer.is_ready
         ↓
-redirect to Google
-
-
-/google/callback
+Commit database change
         ↓
-receive code + state
-        ↓
-atomically consume Redis state
-        ↓
-missing → reject with 401
-found   → continue OAuth flow
+Broadcast ROOM_STATE
 ```
 
-The state helper was tested:
+If a player disconnects while the room is still waiting, readiness
+resets to `false`.
 
-``` text
-First check: True
-Second check: False
-```
+Testing confirmed:
 
-This proves that the OAuth state is single-use.
+-   `ready=true` is persisted.
+-   Updated `ROOM_STATE` is broadcast.
+-   Disconnect from a waiting room resets readiness to `false`.
 
-The unused `state` parameter was later removed from lower-level Google
-token verification because state verification belongs at the callback
-boundary before the service processes the code.
+**Roadmap item 2.1.6 is complete.**
 
 ------------------------------------------------------------------------
 
-## 23. Explicit Google Account Linking
+## 7. Game Engine Models --- Roadmap 2.1.1
 
-The chosen account-linking policy requires the user to log in first.
+### Game model
 
-The intended flow is:
+Fields:
 
-``` text
-password login
-        ↓
-authenticated local user
-        ↓
-GET /api/v1/auth/google/link
-        ↓
-store user ID with one-time state in Redis
-        ↓
-Google authorization
-        ↓
-GET /api/v1/auth/google/link/callback
-        ↓
-consume link state
-        ↓
-recover initiating user ID
-        ↓
-verify Google identity
-        ↓
-validate linking rules
-        ↓
-create AuthIdentity
-```
+-   `id`
+-   `room_id`
+-   `status`
+-   `round_number`
+-   `phase`
+-   `created_at`
 
-Redis link-state storage maps:
+Initial state:
 
 ``` text
-google_link_state:<state> → user_id
+status = active
+round_number = 1
+phase = role_assignment
 ```
 
-with a short TTL and single-use consumption.
+### GamePlayer model
 
-The link state helpers were tested successfully:
+Fields:
 
-``` text
-First: 2
-Second: None
-```
+-   `id`
+-   `game_id`
+-   `user_id`
+-   `role`
+-   `score`
+-   `joined_at`
 
-The Google link-start route requires the authenticated user dependency.
-
-The Google link callback service checks:
-
--   Google identity is not already linked
--   local user still exists
--   Google email matches the logged-in user's local account email
--   identity is then created
-
-Separate redirect URI handling was added so Google login and Google
-account linking can use different callbacks.
+A unique constraint prevents duplicate users in the same game.
 
 ------------------------------------------------------------------------
 
-## 24. Current Main Application Structure
+## 8. Game Repository
 
-Relevant backend structure:
+Implemented functions:
+
+-   `get_by_room_id`
+-   `get_by_id`
+-   `create_game`
+-   `add_game_player`
+-   `get_game_players`
+-   `get_game_player`
+
+Game creation uses `flush()` so the service can create the game, create
+all GamePlayer rows, update the room status, and commit the complete
+operation as one transaction.
+
+------------------------------------------------------------------------
+
+## 9. Role Assignment --- Roadmap 2.1.4
+
+`assign_roles()` is implemented.
+
+Minimum players:
 
 ``` text
-backend/
-├── alembic/
-│   ├── versions/
-│   └── env.py
-├── alembic.ini
-├── app/
-│   ├── auth/
-│   │   ├── oauth/
-│   │   │   ├── google.py
-│   │   │   └── schemas.py
-│   │   ├── dependencies.py
-│   │   ├── models.py
-│   │   ├── repository.py
-│   │   ├── router.py
-│   │   ├── schemas.py
-│   │   ├── security.py
-│   │   └── service.py
-│   ├── core/
-│   │   ├── config.py
-│   │   ├── exceptions.py
-│   │   └── redis.py
-│   ├── db/
-│   │   ├── base.py
-│   │   └── session.py
-│   ├── users/
-│   │   ├── models.py
-│   │   ├── repository.py
-│   │   ├── schemas.py
-│   │   └── service.py
-│   └── main.py
-└── .env
+3
+```
+
+Current distribution:
+
+``` text
+1 Coordinator
+1 Detective
+Remaining players → Citizens
+```
+
+The user list is copied and shuffled before roles are assigned.
+
+------------------------------------------------------------------------
+
+## 10. Start Game Flow
+
+`start_game()` validates:
+
+1.  The room exists.
+2.  The requester is the room host.
+3.  The room is in `waiting`.
+4.  No game already exists for the room.
+5.  Enough players exist for role assignment.
+
+Then it:
+
+``` text
+loads room players
+        ↓
+assigns roles
+        ↓
+creates Game
+        ↓
+creates GamePlayer rows
+        ↓
+changes room.status to in_game
+        ↓
+commits transaction
+```
+
+Endpoint:
+
+``` text
+POST /api/v1/games/{room_code}/start
+```
+
+Only the host can start the game.
+
+------------------------------------------------------------------------
+
+## 11. GAME_START and ROLE_ASSIGNMENT
+
+When a game starts, clients receive a public `GAME_START` event.
+
+Each player's role is sent privately with `ROLE_ASSIGNMENT`.
+
+Example private event:
+
+``` json
+{
+  "type": "ROLE_ASSIGNMENT",
+  "game_id": 1,
+  "role": "detective"
+}
+```
+
+Roles are not broadcast publicly.
+
+------------------------------------------------------------------------
+
+## 12. Game State Machine --- Roadmap 2.1.3
+
+Current phases:
+
+``` text
+WAITING
+    ↓
+ROLE_ASSIGNMENT
+    ↓
+ROUND_START
+    ↓
+INTERACTION
+    ↓
+EVALUATION
+    ↓
+DISCUSSION
+    ↓
+VOTING
+    ↓
+RESULT
+    ↓
+ROUND_START or GAME_OVER
+```
+
+The state machine uses `GamePhase`, `VALID_TRANSITIONS`,
+`can_transition()`, and `validate_transition()`.
+
+Invalid phase jumps are rejected.
+
+------------------------------------------------------------------------
+
+## 13. Phase Advancement --- Roadmap 2.1.4
+
+`advance_phase()` is implemented.
+
+It:
+
+1.  Loads the game.
+2.  Converts the stored phase to `GamePhase`.
+3.  Validates the requested transition.
+4.  Updates the phase.
+5.  Increments `round_number` for `RESULT → ROUND_START`.
+6.  Marks the game completed when entering `GAME_OVER`.
+7.  Commits the change.
+
+------------------------------------------------------------------------
+
+## 14. Host-Only Phase Advancement API
+
+Endpoint:
+
+``` text
+POST /api/v1/games/{game_id}/advance-phase
+```
+
+Flow:
+
+``` text
+JWT authentication
+        ↓
+Game lookup
+        ↓
+Room lookup
+        ↓
+Host authorization
+        ↓
+State-machine validation
+        ↓
+Database update
+        ↓
+PHASE_CHANGED broadcast
+```
+
+Host requests work, while non-host requests return `403 Forbidden`. This
+authorization behavior was tested.
+
+------------------------------------------------------------------------
+
+## 15. PHASE_CHANGED WebSocket Event
+
+After a successful phase update, connected room clients receive a
+`PHASE_CHANGED` event containing game ID, status, round number, and
+phase.
+
+The complete REST → service → PostgreSQL → WebSocket pipeline was tested
+successfully.
+
+------------------------------------------------------------------------
+
+## 16. Active-Game Reconnect Recovery
+
+Reconnect recovery is implemented and tested.
+
+When a player reconnects to a room already in a game, the backend
+restores:
+
+-   `ROOM_STATE`
+-   `GAME_STATE`
+-   The reconnecting player's private `ROLE_ASSIGNMENT`
+
+This ensures a reconnecting player can rebuild the game UI without
+exposing other players' roles.
+
+------------------------------------------------------------------------
+
+## 17. Testing Completed
+
+Completed tests include:
+
+-   Multi-player WebSocket connections
+-   Room-state synchronization
+-   Game start
+-   Private role delivery
+-   Active-game reconnect recovery
+-   Valid phase transition
+-   Invalid phase transition rejection
+-   Host-only phase advancement
+-   Non-host `403` rejection
+-   `PHASE_CHANGED` WebSocket delivery
+-   `PLAYER_READY`
+-   Ready reset after disconnect
+
+------------------------------------------------------------------------
+
+## 18. Current Roadmap Status
+
+### Phase 1 --- Room System
+
+**Status: Complete for the backend foundation used by the current
+game-engine work.**
+
+### Phase 2.1 --- Backend Game State Machine
+
+  Task                                 Status
+  ------------------------------------ ---------------------
+  2.1.1 Game + GamePlayer models       Complete
+  2.1.2 Game schemas                   Complete
+  2.1.3 Phase state machine            Complete
+  2.1.4 `start_game()`                 Complete
+  2.1.4 `assign_roles()`               Complete
+  2.1.4 `advance_phase()`              Complete
+  2.1.4 `check_win_condition()`        Pending
+  2.1.5 Start-game endpoint            Complete
+  2.1.6 PLAYER_READY                   Complete and tested
+  2.1.7 GAME_START + ROLE_ASSIGNMENT   Complete
+  2.1.8 Game migrations                Complete
+
+The main unfinished part of Phase 2.1 is:
+
+``` text
+check_win_condition()
+```
+
+The exact win-condition rules must be defined before implementation.
+Current code does not yet contain mission results, voting results, or a
+defined score/round threshold, so arbitrary victory rules should not be
+invented.
+
+------------------------------------------------------------------------
+
+## 19. Immediate Next Work
+
+The immediate next task is:
+
+``` text
+Phase 2.1.4
+└── check_win_condition()
+```
+
+Before implementation, define:
+
+-   How the Coordinator wins
+-   How the Detective wins
+-   Whether Citizens share a team result
+-   How mission completion affects victory
+-   How voting affects victory
+-   Whether there is a fixed maximum number of rounds
+-   Whether score thresholds determine the winner
+
+After Phase 2.1 is complete, continue with:
+
+``` text
+Phase 2.2 — Coordinator Missions
+        ↓
+Mission model
+Mission schemas
+Mission service
+Mission generation
+Mission completion checking
+Mission progress
+```
+
+Then:
+
+``` text
+Phase 2.3 — Frontend Game Page
+```
+
+followed by:
+
+``` text
+Phase 3 — Chat and Interaction
 ```
 
 ------------------------------------------------------------------------
 
-## 25. Current Authentication Status
+## 20. Architecture Established
 
-Completed so far:
+### Router layer
 
--   PostgreSQL Docker setup
--   async SQLAlchemy database connection
--   shared declarative Base
--   async session dependency
--   User model
--   User schemas
--   Auth schemas
--   password hashing
--   password verification
--   JWT creation
--   JWT decoding
--   User repository
--   signup service
--   login service
--   signup route
--   login route
--   logout route behavior
--   authenticated `/me`
--   active-user dependency
--   application exception hierarchy
--   FastAPI exception handler
--   Alembic setup
--   Alembic baseline
--   AuthIdentity model
--   AuthIdentity migration
--   Auth identity repository
--   Google OAuth credentials
--   Google user schema
--   Google authorization URL
--   Google login redirect
--   authorization-code exchange
--   Google ID-token verification
--   Google callback service
--   Google callback route
--   Redis connection
--   OAuth state storage
--   one-time OAuth state consumption
--   explicit Google link-state storage
--   Google link-start route
--   Google link callback service
--   Google link callback route
+Responsible for HTTP input/output, dependency injection, HTTP status
+codes, and mapping service errors to responses.
+
+### Service layer
+
+Responsible for business rules, role assignment, game-start
+orchestration, phase progression, and future win-condition logic.
+
+### Repository layer
+
+Responsible for SQLAlchemy queries and persistence.
+
+### WebSocket handler layer
+
+Responsible for real-time event validation, invoking backend behavior,
+and broadcasting authoritative state.
+
+### Connection manager
+
+Responsible for active socket tracking, room broadcasts, and private
+per-user messages.
+
+This separation should be maintained while missions, voting, chat, and
+scoring are added.
 
 ------------------------------------------------------------------------
 
-## 26. Next Planned Work
-
-The next planned security improvement is a one-time frontend OAuth
-handoff flow.
-
-Instead of returning the application JWT directly in the browser or
-placing it in a URL, the intended design is:
+## 21. Current High-Level Flow
 
 ``` text
-Google callback
-        ↓
-backend creates application JWT
-        ↓
-backend creates random one-time handoff code
-        ↓
-Redis stores:
-oauth_handoff:<code> → JWT
-TTL: about 60 seconds
-        ↓
-backend redirects frontend to:
-http://localhost:5173/auth/callback?code=<one-time-code>
-        ↓
-frontend exchanges code with backend
-        ↓
-backend consumes code exactly once
-        ↓
-backend returns authentication response
-```
-
-The Redis handoff helpers were the next planned implementation step:
-
-``` text
-create_oauth_handoff()
-consume_oauth_handoff()
-```
-
-After that, remaining work includes:
-
--   frontend OAuth callback page
--   one-time code exchange endpoint
--   safer browser token storage decision
--   refresh-token strategy if needed
--   token rotation/revocation if refresh tokens are added
--   OAuth error handling and user-friendly frontend redirects
--   tests for signup, login, `/me`, OAuth login, state replay, and
-    account linking
--   Python environment upgrade from Python 3.9
--   production configuration and deployment hardening
-
-------------------------------------------------------------------------
-
-## 27. Useful Development Commands
-
-Start backend:
-
-``` bash
-python3 -m uvicorn app.main:app --reload
-```
-
-Check Alembic revision:
-
-``` bash
-python3 -m alembic current
-```
-
-Show migration heads:
-
-``` bash
-python3 -m alembic heads
-```
-
-Generate migration:
-
-``` bash
-python3 -m alembic revision --autogenerate -m "description"
-```
-
-Apply migrations:
-
-``` bash
-python3 -m alembic upgrade head
-```
-
-Open PostgreSQL:
-
-``` bash
-docker exec -it secret_signal_postgres \
-  psql -U postgres -d secret_signal
-```
-
-Check Redis:
-
-``` bash
-docker exec -it secret_signal_redis redis-cli ping
-```
-
-Start Google login flow:
-
-``` text
-http://localhost:8000/api/v1/auth/google/login
-```
-
-Health check:
-
-``` text
-http://localhost:8000/health
+Authentication
+      ↓
+Room creation / join
+      ↓
+Authenticated WebSocket connection
+      ↓
+ROOM_STATE synchronization
+      ↓
+PLAYER_READY updates
+      ↓
+Host starts game
+      ↓
+Game + GamePlayers created
+      ↓
+Roles assigned
+      ↓
+GAME_START broadcast
+      ↓
+Private ROLE_ASSIGNMENT
+      ↓
+Game phase state machine
+      ↓
+Host advances phase
+      ↓
+PHASE_CHANGED broadcast
+      ↓
+Reconnect recovery
+      ↓
+Next: define and implement check_win_condition()
 ```
 
 ------------------------------------------------------------------------
 
-## 28. Important Security Notes
+## Summary
 
-1.  Never store plaintext passwords.
-2.  Never commit `.env`.
-3.  Keep JWT secrets and OAuth client secrets outside source code.
-4.  Do not trust OAuth callback claims without ID-token verification.
-5.  Use Google `sub`, not email, as the stable provider identity.
-6.  OAuth state must be short-lived and single-use.
-7.  Do not automatically link accounts based only on matching email.
-8.  Avoid placing long-lived access tokens in URL query parameters.
-9.  Review every Alembic migration before applying it.
-10. Upgrade the development environment from Python 3.9 before
-    production deployment.
+The Secret Signal backend now has a strong multiplayer foundation:
+authentication, room lifecycle, authenticated real-time connections,
+readiness tracking, game creation, role assignment, game start, private
+role events, state-machine validation, host-only phase progression,
+real-time phase broadcasts, and reconnect recovery.
+
+The immediate focus is to finish roadmap item **2.1.4** by defining and
+implementing `check_win_condition()`. After that, development can move
+into **Phase 2.2 --- Coordinator Missions**.
