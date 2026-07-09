@@ -1,24 +1,33 @@
 import asyncio
+import json
 
-from app.core.redis import (
-    store_google_link_state,
-    consume_google_link_state,
-)
+import websockets
 
 
-async def test():
-    state = "link-test-state"
+TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2IiwiZXhwIjoxNzgzNTk3Mjc0fQ.ZcVl4d6rMqzL4KcpZHgYhXHbNHVeKcGWaTQTlq4TytY"
+ROOM_CODE = "UCR6T0"
 
-    await store_google_link_state(
-        state=state,
-        user_id=2,
+
+async def main():
+    url = (
+        f"ws://127.0.0.1:8000/ws"
+        f"?token={TOKEN}"
+        f"&room_code={ROOM_CODE}"
     )
 
-    first = await consume_google_link_state(state)
-    print("First:", first)
+    async with websockets.connect(url) as websocket:
+        print("Connected")
 
-    second = await consume_google_link_state(state)
-    print("Second:", second)
+        message = await websocket.recv()
+
+        data = json.loads(message)
+
+        print(
+            json.dumps(
+                data,
+                indent=2,
+            )
+        )
 
 
-asyncio.run(test())
+asyncio.run(main())

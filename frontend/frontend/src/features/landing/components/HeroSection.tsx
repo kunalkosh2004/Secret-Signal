@@ -1,7 +1,9 @@
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
+import { useAuthStore } from '../../../stores/authStore'
 
 export const HeroSection = () => {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   return (
     <section className="relative bg-gray-50 text-gray-900 overflow-hidden bg-grid">
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(239,68,68,0.08)_0%,transparent_60%)] pointer-events-none" />
@@ -24,7 +26,7 @@ export const HeroSection = () => {
               </p>
               <div className="flex items-center space-x-6">
                 <Link
-                  to="/auth"
+                  to={isAuthenticated ? '/lobby' : '/auth'}
                   className="inline-flex items-center px-6 py-3 border border-accent/50 text-base font-medium rounded-md text-gray-900 bg-accent/10 hover:bg-accent/20 hover:border-accent transition-all glow-red"
                 >
                   PLAY NOW

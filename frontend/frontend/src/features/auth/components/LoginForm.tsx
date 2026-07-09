@@ -1,12 +1,12 @@
 import { useState } from 'react'
-import type { FormErrors } from '../types/auth.types'
+import type { FormErrors, AuthResponse } from '../types/auth.types'
 import { validateLoginForm } from '../validation/authValidation'
 import { login } from '../services/authApi'
 import { PasswordField } from './PasswordField'
 import { GoogleAuthButton } from './GoogleAuthButton'
 
 interface LoginFormProps {
-  onSuccess: () => void
+  onSuccess: (response: AuthResponse) => void
 }
 
 export function LoginForm({ onSuccess }: LoginFormProps) {
@@ -26,8 +26,8 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
 
     setSubmitting(true)
     try {
-      await login({ email: email.trim(), password })
-      onSuccess()
+      const result = await login({ email: email.trim(), password })
+      onSuccess(result)
     } catch (err) {
       setServerError(
         err instanceof Error

@@ -18,7 +18,7 @@ export function AuthLayout({ children }: AuthLayoutProps) {
         <div className="hidden lg:flex lg:col-span-2 flex-col justify-between p-8 bg-gray-150 border-r border-gray-400/20">
           <div>
             <div className="text-sm font-mono tracking-wider text-gray-900">
-              <span className="text-accent">//</span> SECRET_SIGNAL
+              <span className="text-accent">{'//'}</span> SECRET_SIGNAL
             </div>
             <div className="mt-8 space-y-4">
               <p className="text-sm text-gray-600 leading-relaxed font-mono">

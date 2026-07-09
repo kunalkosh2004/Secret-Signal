@@ -1,17 +1,15 @@
 /**
  * Auth types — API contract types for authentication.
  *
- * These define the shape of data sent to and received from the backend.
- * The backend is not fully implemented yet; these are the planned contracts.
+ * These match the backend responses exactly:
+ *   POST /api/v1/auth/signup → TokenResponse
+ *   POST /api/v1/auth/login  → TokenResponse
+ *   GET  /api/v1/auth/me     → UserResponse
  *
- * === Design Notes ===
- *
- * Token strategy: The current plan uses an access token returned in the JSON body.
- * A future iteration may switch to HttpOnly cookies for the refresh token.
- * See backend/app/auth/README.md for trade-offs.
- *
- * Nothing here is persisted in the frontend except ephemeral form state
- * and whatever token storage mechanism is finalised later.
+ * === Token storage ===
+ * The access token is stored in localStorage and loaded on app start.
+ * This is simple but XSS-vulnerable. In production, consider an
+ * HttpOnly refresh cookie instead. See backend/app/auth/README.md.
  */
 
 export interface SignupRequest {
@@ -26,16 +24,16 @@ export interface LoginRequest {
 }
 
 export interface UserResponse {
-  id: string
+  id: number
   username: string
   email: string
-  createdAt: string
+  created_at: string
 }
 
 export interface AuthResponse {
+  access_token: string
+  token_type: string
   user: UserResponse
-  /** JWT access token (or session token, depending on final architecture) */
-  accessToken: string
 }
 
 export interface ApiErrorResponse {

@@ -42,6 +42,7 @@ import secrets
 from fastapi.responses import RedirectResponse
 from fastapi import Query
 
+from app.core.config import settings
 from app.core.redis import (
     store_oauth_state,
     consume_oauth_state,
@@ -141,7 +142,10 @@ async def google_callback(
         code=code
     )
 
-    return result
+    return RedirectResponse(
+        url=f"{settings.frontend_url}/auth/google/callback?access_token={result.access_token}",
+        status_code=302,
+    )
 
 @router.get("/google/link")
 async def google_link(

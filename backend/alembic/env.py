@@ -12,7 +12,7 @@ from app.db.base import Base
 # Import models so they are registered in Base.metadata
 from app.users.models import User
 from app.auth.models import AuthIdentity
-
+from app.rooms.models import Room, RoomPlayer
 
 config = context.config
 

@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom'
+import { useAuthStore } from '../../../stores/authStore'
 
 export const FinalCTA = () => {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   return (
     <section className="py-20 bg-gray-50 border-t border-red-900/10 bg-grid">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -15,7 +17,7 @@ export const FinalCTA = () => {
           </p>
           <div className="mt-8">
             <Link
-              to="/auth"
+              to={isAuthenticated ? '/lobby' : '/auth'}
               className="inline-flex items-center px-6 py-3 border border-accent/50 text-base font-medium rounded-md text-gray-900 bg-accent/10 hover:bg-accent/20 hover:border-accent transition-all glow-red font-mono tracking-wider"
             >
               PLAY SECRET SIGNAL

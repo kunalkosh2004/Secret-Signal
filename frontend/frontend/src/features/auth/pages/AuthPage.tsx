@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import type { AuthMode } from '../types/auth.types'
+import type { AuthMode, AuthResponse } from '../types/auth.types'
+import { useAuthStore } from '../../../stores/authStore'
 import { AuthLayout } from '../components/AuthLayout'
 import { LoginForm } from '../components/LoginForm'
 import { SignupForm } from '../components/SignupForm'
@@ -8,11 +9,11 @@ import { AuthModeSwitch } from '../components/AuthModeSwitch'
 
 export function AuthPage() {
   const navigate = useNavigate()
+  const setAuth = useAuthStore((s) => s.setAuth)
   const [mode, setMode] = useState<AuthMode>('login')
 
-  const handleSuccess = () => {
-    // TODO: After real auth is implemented, navigate to /lobby
-    // For now, the API throws "not implemented" so this won't fire.
+  const handleSuccess = (response: AuthResponse) => {
+    setAuth(response.user, response.access_token)
     navigate('/lobby')
   }
 

@@ -1,12 +1,12 @@
 import { useState } from 'react'
-import type { FormErrors } from '../types/auth.types'
+import type { FormErrors, AuthResponse } from '../types/auth.types'
 import { validateSignupForm, PASSWORD_MIN_LENGTH } from '../validation/authValidation'
 import { signup } from '../services/authApi'
 import { PasswordField } from './PasswordField'
 import { GoogleAuthButton } from './GoogleAuthButton'
 
 interface SignupFormProps {
-  onSuccess: () => void
+  onSuccess: (response: AuthResponse) => void
 }
 
 export function SignupForm({ onSuccess }: SignupFormProps) {
@@ -33,8 +33,8 @@ export function SignupForm({ onSuccess }: SignupFormProps) {
 
     setSubmitting(true)
     try {
-      await signup({ username: username.trim(), email: email.trim(), password })
-      onSuccess()
+      const result = await signup({ username: username.trim(), email: email.trim(), password })
+      onSuccess(result)
     } catch (err) {
       setServerError(
         err instanceof Error

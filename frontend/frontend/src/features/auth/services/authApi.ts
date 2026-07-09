@@ -1,77 +1,88 @@
 /**
- * Auth API service boundary.
+ * Auth API service — talks to the real backend.
  *
- * Each function maps to a backend endpoint.
- * The backend does not exist yet, so these throw a development-time error
- * to make it obvious that the real implementation is missing.
- *
- * === Integration checklist (do this later) ===
- *
- * 1. Pick an HTTP client: plain `fetch`, ky, or axios.
- *    The rest of this project doesn't use one yet, so start with fetch.
- *
- * 2. Decide where the base URL comes from.
- *    The Vite dev server proxies /api/* to the backend,
- *    so in development you can use relative URLs like `/api/v1/auth/signup`.
- *
- * 3. Decide how to store the access token.
- *    See the auth README for trade-offs.
- *    Popular options: in-memory variable + HttpOnly refresh cookie,
- *    or localStorage (with XSS awareness).
- *
- * 4. Add an interceptor / wrapper that attaches the token
- *    to the Authorization header on every request.
+ * The Vite dev server proxies /api/* → http://localhost:8000,
+ * so we use relative URLs in development.
  */
 
-import type { SignupRequest, LoginRequest, AuthResponse } from '../types/auth.types'
+import type {
+  SignupRequest,
+  LoginRequest,
+  AuthResponse,
+  UserResponse,
+  ApiErrorResponse,
+} from '../types/auth.types'
 
-const DEV_MESSAGE = 'Backend auth endpoints are not yet implemented.'
+const BASE = '/api/v1/auth'
 
-async function devNotImplemented(): Promise<never> {
-  throw new Error(
-    `${DEV_MESSAGE} See backend/app/auth/README.md to implement them yourself.`,
-  )
+async function request<T>(
+  path: string,
+  options: RequestInit = {},
+): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, {
+    ...options,
+    headers: { 'Content-Type': 'application/json', ...options.headers as Record<string, string> },
+  })
+
+  if (!res.ok) {
+    let detail = 'An unexpected error occurred.'
+    try {
+      const err = (await res.json()) as ApiErrorResponse
+      if (err.detail) detail = err.detail
+    } catch {
+      // ignore parse errors
+    }
+    throw new Error(detail)
+  }
+
+  return res.json() as Promise<T>
 }
 
-export async function signup(_data: SignupRequest): Promise<AuthResponse> {
-  // TODO: POST /api/v1/auth/signup
-  return devNotImplemented()
+/** Authenticated request helper — attaches Bearer token. */
+function authHeaders(token: string): Record<string, string> {
+  return { Authorization: `Bearer ${token}` }
 }
 
-export async function login(_data: LoginRequest): Promise<AuthResponse> {
-  // TODO: POST /api/v1/auth/login
-  return devNotImplemented()
+// ── Public endpoints ──────────────────────────────────────────────
+
+export async function signup(data: SignupRequest): Promise<AuthResponse> {
+  return request<AuthResponse>('/signup', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
 }
+
+export async function login(data: LoginRequest): Promise<AuthResponse> {
+  return request<AuthResponse>('/login', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+// ── Authenticated endpoints ───────────────────────────────────────
 
 export async function logout(): Promise<void> {
-  // TODO: POST /api/v1/auth/logout
-  return devNotImplemented()
+  // Stateless JWT — no server action needed, just clear on client.
+  // The backend /logout endpoint exists but is a no-op.
 }
 
-export async function getCurrentUser(): Promise<AuthResponse['user']> {
-  // TODO: GET /api/v1/auth/me
-  return devNotImplemented()
+export async function getCurrentUser(token: string): Promise<UserResponse> {
+  return request<UserResponse>('/me', {
+    headers: authHeaders(token),
+  })
 }
+
+// ── Google OAuth ──────────────────────────────────────────────────
 
 /**
  * Begin Google OAuth login flow.
  *
- * Future implementation: redirect the browser to
- *   GET /api/v1/auth/google/login
+ * Redirects the browser to the backend, which redirects to Google.
+ * After Google auth, the backend redirects back to the frontend
+ * with a one-time handoff code (to be implemented).
  *
- * The backend will redirect to Google's consent screen,
- * then after auth, Google redirects back to the backend callback,
- * which creates/links the account and sets an application session.
- *
- * Do NOT:
- *   - Hardcode a Google client ID here
- *   - Call Google's APIs directly from the browser
- *   - Store OAuth secrets in the frontend bundle
+ * For now, this directly triggers the browser redirect.
  */
 export function beginGoogleLogin(): void {
-  // TODO: window.location.href = '/api/v1/auth/google/login'
-  console.warn(
-    'Google login is not yet configured. ' +
-    'Implement the backend OAuth flow first (see backend/app/auth/README.md).',
-  )
+  window.location.href = `${BASE}/google/login`
 }

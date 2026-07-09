@@ -1,12 +1,22 @@
 """
 Secret Signal Backend — FastAPI application entry point.
 """
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.auth.router import router as auth_router
+from app.rooms.router import router as rooms_router
 from app.core.exceptions import AppException
+
+from app.db.session import SessionLocal
+from app.websocket.handlers import (
+    authenticate_websocket,
+    authorize_room_connection,
+    broadcast_room_state,
+    handle_message,
+)
+from app.websocket.manager import manager
 
 app = FastAPI(title="Secret Signal Backend")
 
@@ -21,6 +31,66 @@ async def app_exception_handler(
             "detail": exc.detail,
         },
     )
+
+
+@app.websocket("/ws")
+async def websocket_endpoint(
+    websocket: WebSocket,
+    token: str,
+    room_code: str,
+):
+    room_code = room_code.strip().upper()
+
+    async with SessionLocal() as db:
+        user = await authenticate_websocket(
+            db=db,
+            token=token,
+        )
+
+        if user is None:
+            await websocket.close(code=1008)
+            return
+
+        is_authorized = await authorize_room_connection(
+            db=db,
+            room_code=room_code,
+            user_id=user.id,
+        )
+
+        if not is_authorized:
+            await websocket.close(code=1008)
+            return
+
+        await manager.connect(
+            room_code=room_code,
+            user_id=user.id,
+            websocket=websocket,
+        )
+        await broadcast_room_state(
+            db=db,
+            room_code=room_code,
+        )
+
+        try:
+            while True:
+                message = await websocket.receive_json()
+
+                await handle_message(
+                    websocket=websocket,
+                    room_code=room_code,
+                    user_id=user.id,
+                    message=message,
+                )
+
+        except WebSocketDisconnect:
+            manager.disconnect(
+                room_code=room_code,
+                user_id=user.id,
+            )
+            await broadcast_room_state(
+                db=db,
+                room_code=room_code,
+            )
 # ---------------------------------------------------------------------------
 # CORS — Cross-Origin Resource Sharing
 # ---------------------------------------------------------------------------
@@ -55,6 +125,7 @@ app.add_middleware(
 # Routers
 # ---------------------------------------------------------------------------
 app.include_router(auth_router)
+app.include_router(rooms_router)
 
 
 # ---------------------------------------------------------------------------
