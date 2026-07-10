@@ -41,11 +41,9 @@ export function ChatPanel({ messages, onSend, currentUserId }: ChatPanelProps) {
                     : 'bg-gray-200 text-gray-700 border border-gray-400/20'
                 }`}
               >
-                {!isMe && (
-                  <div className="text-[10px] font-mono text-gray-500 mb-0.5">
-                    {msg.username}
-                  </div>
-                )}
+                <div className="text-[10px] font-mono text-gray-500 mb-0.5">
+                  {msg.username}
+                </div>
                 <div>{msg.content}</div>
               </div>
             </div>
@@ -61,6 +59,8 @@ export function ChatPanel({ messages, onSend, currentUserId }: ChatPanelProps) {
       >
         <input
           type="text"
+          id="chat-input"
+          name="chat-input"
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder="Type a message..."

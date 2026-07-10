@@ -10,11 +10,15 @@ from app.game_engine.schemas import (
 from app.game_engine.service import (
     advance_phase as advance_phase_service,
     start_game as start_game_service,
+    check_win_condition,
 )
 from app.users.models import User
 from app.game_engine import repository as game_repository
 from app.rooms import repository as room_repository
 from app.websocket.manager import manager
+from app.missions import repository as mission_repository
+from app.voting import service as voting_service
+from app.game_engine.state_machine import GamePhase
 
 
 router = APIRouter(
@@ -55,22 +59,6 @@ async def start_game(
                 },
             },
         )
-
-        game_players = await game_repository.get_game_players(
-            db,
-            game_id=game.id,
-        )
-
-        for game_player in game_players:
-            await manager.send_to_user(
-                room_code=normalized_room_code,
-                user_id=game_player.user_id,
-                message={
-                    "type": "ROLE_ASSIGNMENT",
-                    "game_id": game.id,
-                    "role": game_player.role,
-                },
-            )
 
         return game
 
@@ -144,6 +132,10 @@ async def advance_phase(
             detail=str(exc),
         )
 
+    # --------------------------------------------------
+    # BROADCAST PHASE CHANGE
+    # --------------------------------------------------
+
     await manager.broadcast_to_room(
         room_code=room.code,
         message={
@@ -156,5 +148,117 @@ async def advance_phase(
             },
         },
     )
+
+    # --------------------------------------------------
+    # TALLY VOTES (voting → result)
+    # --------------------------------------------------
+
+    if request.next_phase == GamePhase.RESULT:
+        vote_results = await voting_service.tally_votes(
+            db=db,
+            game_id=game.id,
+            round_number=game.round_number,
+        )
+
+        await manager.broadcast_to_room(
+            room_code=room.code,
+            message={
+                "type": "VOTE_RESULTS",
+                "results": vote_results.model_dump(),
+            },
+        )
+
+    # --------------------------------------------------
+    # CHECK FINAL-ROUND WIN CONDITION
+    # --------------------------------------------------
+
+    if request.next_phase == GamePhase.RESULT:
+        win_result = await check_win_condition(
+            db=db,
+            game_id=game.id,
+        )
+
+        if win_result.game_over:
+            game.status = "completed"
+            game.phase = GamePhase.GAME_OVER.value
+
+            room.status = "completed"
+
+            await db.commit()
+
+            await db.refresh(game)
+            await db.refresh(room)
+
+            await manager.broadcast_to_room(
+                room_code=room.code,
+                message={
+                    "type": "GAME_OVER",
+                    "game": {
+                        "id": game.id,
+                        "status": game.status,
+                        "round_number": game.round_number,
+                        "phase": game.phase,
+                    },
+                    "winner": win_result.winner,
+                    "reason": win_result.reason,
+                },
+            )
+
+            return game
+
+    # --------------------------------------------------
+    # SEND NEW ROUND MISSIONS TO COORDINATOR
+    # --------------------------------------------------
+
+    if request.next_phase == GamePhase.ROUND_START:
+        coordinator = (
+            await game_repository.get_player_by_role(
+                db=db,
+                game_id=game.id,
+                role="coordinator",
+            )
+        )
+
+        if coordinator is not None:
+            missions = (
+                await mission_repository.get_user_missions(
+                    db=db,
+                    game_id=game.id,
+                    user_id=coordinator.user_id,
+                    round_number=game.round_number,
+                )
+            )
+
+            await manager.send_to_user(
+                room_code=room.code,
+                user_id=coordinator.user_id,
+                message={
+                    "type": "MISSION_ASSIGNMENT",
+                    "game_id": game.id,
+                    "missions": [
+                        {
+                            "id": mission.id,
+                            "mission_type": (
+                                mission.mission_type
+                            ),
+                            "title": mission.title,
+                            "description": (
+                                mission.description
+                            ),
+                            "target_value": (
+                                mission.target_value
+                            ),
+                            "current_value": (
+                                mission.current_value
+                            ),
+                            "status": mission.status,
+                            "round_number": (
+                                mission.round_number
+                            ),
+                        }
+                        for mission in missions
+                    ],
+                },
+            )
 
     return game

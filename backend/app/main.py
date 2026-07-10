@@ -46,19 +46,19 @@ async def websocket_endpoint(
     room_code = room_code.strip().upper()
 
     async with SessionLocal() as db:
-        user = await authenticate_websocket(
+        user, user_id = await authenticate_websocket(
             db=db,
             token=token,
         )
 
-        if user is None:
+        if user is None or user_id is None:
             await websocket.close(code=1008)
             return
 
         is_authorized = await authorize_room_connection(
             db=db,
             room_code=room_code,
-            user_id=user.id,
+            user_id=user_id,
         )
 
         if not is_authorized:
@@ -67,7 +67,7 @@ async def websocket_endpoint(
 
         await manager.connect(
             room_code=room_code,
-            user_id=user.id,
+            user_id=user_id,
             websocket=websocket,
         )
         await broadcast_room_state(
@@ -75,12 +75,15 @@ async def websocket_endpoint(
             room_code=room_code,
         )
 
-        await send_game_state_to_user(
-            db=db,
-            websocket=websocket,
-            room_code=room_code,
-            user_id=user.id,
-        )
+        try:
+            await send_game_state_to_user(
+                db=db,
+                websocket=websocket,
+                room_code=room_code,
+                user_id=user_id,
+            )
+        except RuntimeError:
+            pass
 
         try:
             while True:
@@ -90,14 +93,15 @@ async def websocket_endpoint(
                     db=db,
                     websocket=websocket,
                     room_code=room_code,
-                    user_id=user.id,
+                    user_id=user_id,
                     message=message,
                 )
 
         except WebSocketDisconnect:
             manager.disconnect(
                 room_code=room_code,
-                user_id=user.id,
+                user_id=user_id,
+                websocket=websocket,
             )
 
             room = await room_repository.get_by_code(
@@ -109,13 +113,27 @@ async def websocket_endpoint(
                 await room_repository.set_player_ready(
                     db,
                     room_id=room.id,
-                    user_id=user.id,
+                    user_id=user_id,
                     is_ready=False,
                 )
 
             await broadcast_room_state(
                 db=db,
                 room_code=room_code,
+            )
+
+        except RuntimeError:
+            manager.disconnect(
+                room_code=room_code,
+                user_id=user_id,
+                websocket=websocket,
+            )
+
+        except Exception:
+            manager.disconnect(
+                room_code=room_code,
+                user_id=user_id,
+                websocket=websocket,
             )
 # ---------------------------------------------------------------------------
 # CORS — Cross-Origin Resource Sharing

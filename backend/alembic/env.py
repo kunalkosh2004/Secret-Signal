@@ -14,6 +14,9 @@ from app.users.models import User
 from app.auth.models import AuthIdentity
 from app.rooms.models import Room, RoomPlayer
 from app.game_engine.models import Game, GamePlayer
+from app.missions.models import Mission
+from app.chat.models import Message
+from app.voting.models import Vote
 
 config = context.config
 

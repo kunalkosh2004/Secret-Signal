@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useAuthStore } from '../../../stores/authStore'
 import { useWebSocket } from '../../../hooks/useWebSocket'
 import { getRoom, leaveRoom } from '../services/roomApi'
+import { startGame } from '../services/gameApi'
 import type { RoomResponse } from '../types/room.types'
 
 export function RoomPage() {
@@ -18,6 +19,8 @@ export function RoomPage() {
 
   const [room, setRoom] = useState<RoomResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [startError, setStartError] = useState<string | null>(null)
+  const [starting, setStarting] = useState(false)
   const [copied, setCopied] = useState(false)
   const [leaveError, setLeaveError] = useState<string | null>(null)
   const [isReady, setIsReady] = useState(false)
@@ -48,6 +51,13 @@ export function RoomPage() {
     }
   }, [lastRoomState])
 
+  // Redirect to auth if not authenticated
+  useEffect(() => {
+    if (!isAuthenticated) {
+      navigate('/auth', { replace: true })
+    }
+  }, [isAuthenticated, navigate])
+
   // Handle GAME_START → navigate to game page
   useEffect(() => {
     if (lastGameStart && code) {
@@ -56,7 +66,6 @@ export function RoomPage() {
   }, [lastGameStart, code, navigate])
 
   if (!isAuthenticated) {
-    navigate('/auth', { replace: true })
     return null
   }
 
@@ -92,10 +101,11 @@ export function RoomPage() {
   const players = lastRoomState?.players ?? []
   const isHost = user?.id === room.host_id
   const playerCount = players.length
-  // Optimistic ready count: server's view minus our server state plus our local state
   const serverReadyCount = players.filter((p) => p.is_ready).length
-  const myServerReady = !!players.find((p) => p.id === user?.id)?.is_ready
-  const readyCount = serverReadyCount - (myServerReady ? 1 : 0) + (isReady ? 1 : 0)
+  const readyCount = serverReadyCount + (isHost ? 1 : 0) // host always counts as ready
+  const allNonHostReady = playerCount < 2 || players
+    .filter((p) => p.id !== room.host_id)
+    .every((p) => p.is_ready)
   const hostPlayer = players.find((p) => p.id === room.host_id)
 
   const handleCopyCode = () => {
@@ -121,8 +131,18 @@ export function RoomPage() {
     }
   }
 
-  const handleStartGame = () => {
-    // TODO: POST /api/v1/games/{code}/start — the backend will broadcast GAME_START
+  const handleStartGame = async () => {
+    if (!code) return
+    setStartError(null)
+    setStarting(true)
+    try {
+      await startGame(code)
+      setStarting(false)
+      navigate(`/game/${code}`, { replace: true })
+    } catch (err) {
+      setStartError(err instanceof Error ? err.message : 'Failed to start game')
+      setStarting(false)
+    }
   }
 
   return (
@@ -209,7 +229,9 @@ export function RoomPage() {
                   )}
                 </div>
                 <div className="flex items-center gap-2">
-                  {((p.id === user?.id) ? isReady : p.is_ready) ? (
+                  {p.id === room.host_id ? (
+                    <span className="text-xs font-mono text-accent/80 tracking-wider">HOST &#10003;</span>
+                  ) : ((p.id === user?.id) ? isReady : p.is_ready) ? (
                     <span className="text-xs font-mono text-green-500/80 tracking-wider">READY</span>
                   ) : (
                     <span className="text-xs font-mono text-gray-600">WAITING</span>
@@ -245,11 +267,17 @@ export function RoomPage() {
           {isHost && (
             <button
               onClick={handleStartGame}
-              disabled={playerCount < 3}
+              disabled={playerCount < 3 || !allNonHostReady || starting}
               className="w-full py-3 border border-accent/50 rounded text-sm font-mono tracking-wider text-gray-900 bg-accent/10 hover:bg-accent/20 disabled:opacity-40 disabled:cursor-not-allowed transition-all glow-red"
             >
-              START GAME
+              {starting ? 'STARTING...' : 'START GAME'}
             </button>
+          )}
+
+          {startError && (
+            <div className="p-3 bg-red-900/20 border border-red-500/30 rounded animate-slide-down">
+              <p className="text-xs font-mono text-red-400 text-center">{startError}</p>
+            </div>
           )}
 
           {/* Leave error */}

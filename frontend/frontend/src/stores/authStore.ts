@@ -15,10 +15,23 @@ interface AuthStore {
   loadFromStorage: () => void
 }
 
+function loadInitialAuth(): { user: UserResponse | null; token: string | null; isAuthenticated: boolean } {
+  const token = localStorage.getItem(TOKEN_KEY)
+  const raw = localStorage.getItem(USER_KEY)
+  if (token && raw) {
+    try {
+      const user = JSON.parse(raw) as UserResponse
+      return { user, token, isAuthenticated: true }
+    } catch {
+      localStorage.removeItem(TOKEN_KEY)
+      localStorage.removeItem(USER_KEY)
+    }
+  }
+  return { user: null, token: null, isAuthenticated: false }
+}
+
 export const useAuthStore = create<AuthStore>((set) => ({
-  user: null,
-  token: null,
-  isAuthenticated: false,
+  ...loadInitialAuth(),
 
   setAuth: (user, token) => {
     localStorage.setItem(TOKEN_KEY, token)

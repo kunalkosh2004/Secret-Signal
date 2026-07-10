@@ -19,7 +19,7 @@ async def create_message(
 
     db.add(message)
 
-    await db.commit()
+    await db.flush()
     await db.refresh(message)
 
     return message

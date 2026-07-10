@@ -99,7 +99,7 @@
 | 3.1.2 | Chat schemas + repository (`create_message`, `get_room_messages`) | ✅ |
 | 3.1.3 | `SEND_MESSAGE` WebSocket handler + `MESSAGE_SENT` broadcast | ✅ |
 | 3.1.4 | `GET /api/v1/rooms/{code}/messages` — chat history endpoint | ✅ |
-| 3.1.5 | Chat message model migration | 🔵 |
+| 3.1.5 | Chat message model migration | ✅ |
 | 3.1.6 | `REPLY_TO_MESSAGE` + `ADD_REACTION` WS handlers | 🟢 |
 
 ### 3.2 Frontend: Chat UI
@@ -175,12 +175,12 @@
 ## Immediate Next Steps
 
 ```
-1. Wire up START GAME button in RoomPage  (2.3 — REST call to POST /games/{code}/start)
-2. Missions backend                       (2.2 — models, generate, evaluate)
-3. check_win_condition()                  (2.1.12 — needs design decisions)
-4. Chat model migration + reply/react     (3.1.5-3.1.6)
-5. Voting backend + frontend              (Phase 4)
-6. Scoring + game over                    (Phase 5)
+1. Phase-specific SEND_MESSAGE validation (INTERACTION/DISCUSSION only)
+2. GAME_OVER reconnect recovery           (send to reconnecting players)
+3. Voting backend integration             (build vote tally + results WS events)
+4. Scoring + game over polish             (Phase 5)
+5. Richer chat: reply/react/mentions      (3.1.6)
+6. Additional mission types               (2.2)
 ```
 
-Currently: rooms work with real-time ready sync, chat is functional, game can be started via REST API, roles assigned, phases advanced. Next is wiring the START GAME button and building the mission system.
+Currently: rooms + ready sync, full game engine, missions with live progress bars, chat voting phase, START GAME wired, phase-specific panels for all game phases, mission display for Coordinator, vote panel, animated phase transitions, GAME_OVER winner reveal.

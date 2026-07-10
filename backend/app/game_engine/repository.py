@@ -97,3 +97,17 @@ async def get_by_id(
     )
 
     return result.scalar_one_or_none()
+
+async def get_player_by_role(
+    db: AsyncSession,
+    game_id: int,
+    role: str,
+) -> Optional[GamePlayer]:
+    result = await db.execute(
+        select(GamePlayer).where(
+            GamePlayer.game_id == game_id,
+            GamePlayer.role == role,
+        )
+    )
+
+    return result.scalar_one_or_none()

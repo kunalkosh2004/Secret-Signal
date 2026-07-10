@@ -126,6 +126,27 @@
   .animate-shake {
     animation: shake 0.4s ease-in-out;
   }
+
+  .animate-seal-glow {
+    animation: seal-glow 1.5s ease-in-out infinite alternate;
+  }
+
+  .animate-card-flip {
+    animation: card-flip 1.2s ease-in-out forwards;
+  }
+
+  /* 3D card helpers */
+  .preserve-3d {
+    transform-style: preserve-3d;
+  }
+
+  .backface-hidden {
+    backface-visibility: hidden;
+  }
+
+  .rotate-y-180 {
+    transform: rotateY(180deg);
+  }
 }
 
 @keyframes fade-in {
@@ -170,4 +191,17 @@
   40%      { transform: translateX(4px); }
   60%      { transform: translateX(-3px); }
   80%      { transform: translateX(3px); }
+}
+
+@keyframes seal-glow {
+  0%   { box-shadow: 0 0 8px rgba(239, 68, 68, 0.2), 0 0 16px rgba(239, 68, 68, 0.08); transform: scale(1); }
+  100% { box-shadow: 0 0 20px rgba(239, 68, 68, 0.4), 0 0 40px rgba(239, 68, 68, 0.15); transform: scale(1.06); }
+}
+
+@keyframes card-flip {
+  0%   { transform: rotateY(0deg); }
+  50%  { transform: rotateY(110deg); }
+  65%  { transform: rotateY(80deg); }
+  80%  { transform: rotateY(100deg); }
+  100% { transform: rotateY(180deg); }
 }

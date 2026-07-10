@@ -24,13 +24,17 @@ class ConnectionManager:
         self,
         room_code: str,
         user_id: int,
+        websocket: WebSocket | None = None,
     ) -> None:
         room_connections = self.active_connections.get(room_code)
 
         if room_connections is None:
             return
 
-        room_connections.pop(user_id, None)
+        current = room_connections.get(user_id)
+        # Only remove if it matches the given websocket (or any if not provided)
+        if current is not None and (websocket is None or current is websocket):
+            room_connections.pop(user_id, None)
 
         if not room_connections:
             self.active_connections.pop(room_code, None)

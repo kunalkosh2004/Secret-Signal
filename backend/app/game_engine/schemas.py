@@ -31,3 +31,8 @@ class GameState(BaseModel):
 class RoleAssignment(BaseModel):
     user_id: int
     role: str
+
+class WinConditionResult(BaseModel):
+    game_over: bool
+    winner: str | None = None
+    reason: str | None = None
