@@ -1,6 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.voting import repository as vote_repository
+from app.voting.models import Vote
 from app.voting.schemas import VoteResults, VoteTally
 
 
@@ -10,7 +11,7 @@ async def cast_vote(
     round_number: int,
     voter_user_id: int,
     target_user_id: int,
-) -> None:
+) -> Vote:
     already_voted = await vote_repository.has_voted(
         db,
         game_id=game_id,
@@ -24,7 +25,7 @@ async def cast_vote(
     if voter_user_id == target_user_id:
         raise ValueError("You cannot vote for yourself")
 
-    await vote_repository.create_vote(
+    vote = await vote_repository.create_vote(
         db,
         game_id=game_id,
         round_number=round_number,
@@ -32,7 +33,7 @@ async def cast_vote(
         target_user_id=target_user_id,
     )
 
-    await db.commit()
+    return vote
 
 
 async def tally_votes(

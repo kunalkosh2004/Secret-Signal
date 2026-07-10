@@ -1,56 +1,54 @@
-"""
-Application settings loaded from environment variables.
+"""Application settings loaded from environment variables."""
 
-Uses Pydantic Settings (pydantic-settings) for validation and type coercion.
-
-TODO:
-  - Install:  pip install pydantic-settings
-  - Create a Settings class with fields matching your .env variables.
-  - Instantiate once:  settings = Settings()
-  - Import `settings` everywhere instead of reading os.environ directly.
-
-Example fields:
-
-    class Settings(BaseSettings):
-        model_config = SettingsConfigDict(env_file=".env", extra="ignore")
-
-        database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/secret_signal"
-        secret_key: str = "change-me-in-production"
-        algorithm: str = "HS256"
-        access_token_expire_minutes: int = 30
-
-        google_client_id: str = ""
-        google_client_secret: str = ""
-        google_redirect_uri: str = "http://localhost:8000/api/v1/auth/google/callback"
-
-        frontend_url: str = "http://localhost:5173"
-
-        debug: bool = True
-"""
-
-from pydantic_settings import BaseSettings, SettingsConfigDict
 from pathlib import Path
+
+from pydantic import model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+REPO_ROOT = Path(__file__).resolve().parents[3]
+BACKEND_ROOT = Path(__file__).resolve().parents[2]
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=(
+            REPO_ROOT / ".env",
+            BACKEND_ROOT / ".env",
+        ),
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
 
-    DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/secret_signal"
-    secret_key: str = "RaBbmulLabdWENGXsquvTNVQCl0tJVd-b0YInJCZ2OzJ8r5XS_B1QAYi3CSNPmp62135DWd5C05u92zXHOEjrw"
+    DATABASE_URL: str
+    backend_host: str = "0.0.0.0"
+    backend_port: int = 8000
+    debug: bool = True
+
+    secret_key: str
     algorithm: str = "HS256"
-    access_token_expire_minutes: int = 60
+    access_token_expire_minutes: int = 30
 
-    google_client_id: str = "1083073728796-5e474n9nm2r3qshjj29ngic8tq9e3fu0.apps.googleusercontent.com"
-    google_client_secret: str = "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"
+    google_client_id: str = ""
+    google_client_secret: str = ""
     google_redirect_uri: str = "http://localhost:8000/api/v1/auth/google/callback"
-    google_link_redirect_uri: str = (
-    "http://localhost:8000/api/v1/auth/google/link/callback"
-)
+    google_link_redirect_uri: str = "http://localhost:8000/api/v1/auth/google/link/callback"
 
     frontend_url: str = "http://localhost:5173"
-    redis_url: str = "redis://localhost:6379/0"
+    redis_host: str = "localhost"
+    redis_port: int = 6379
+    redis_password: str = ""
+    redis_db: int = 0
+    redis_url: str = ""
 
-    debug: bool = True
+    @model_validator(mode="after")
+    def populate_redis_url(self) -> "Settings":
+        if self.redis_url:
+            return self
+
+        auth = f":{self.redis_password}@" if self.redis_password else ""
+        self.redis_url = f"redis://{auth}{self.redis_host}:{self.redis_port}/{self.redis_db}"
+        return self
 
 
 settings = Settings()

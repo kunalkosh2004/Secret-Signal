@@ -11,11 +11,12 @@ from app.websocket.manager import manager
 from app.game_engine import repository as game_repository
 from app.chat import repository as chat_repository
 from app.users import repository as user_repository
-from app.missions.service import increment_mission_progress
-from app.game_engine.service import check_win_condition
+from app.missions.service import evaluate_message_missions
+from app.game_engine.service import check_win_condition, calculate_final_scores
 from app.game_engine.state_machine import GamePhase
 from app.missions import repository as mission_repository
 from app.voting import service as voting_service
+from app.events import repository as event_repository
 
 
 async def handle_message(
@@ -130,7 +131,7 @@ async def handle_message(
             )
             return
 
-        updated_mission = None
+        updated_missions = []
         win_result = None
         game = None
 
@@ -168,23 +169,54 @@ async def handle_message(
                 )
                 return
 
+            if game is not None:
+                await event_repository.create_event(
+                    db=db,
+                    game_id=game.id,
+                    round_number=game.round_number,
+                    event_type="message_sent",
+                    user_id=user_id,
+                    payload={
+                        "message_id": chat_message.id,
+                        "content": content.strip(),
+                    },
+                )
+
             # ------------------------------------------
-            # Progress send_messages mission (active game only)
+            # Evaluate chat-driven missions during interaction.
             # ------------------------------------------
 
             if (
                 game is not None
                 and game.status == "active"
+                and game.phase == GamePhase.INTERACTION.value
             ):
-                updated_mission = (
-                    await increment_mission_progress(
+                updated_missions = (
+                    await evaluate_message_missions(
                         db=db,
                         game_id=game.id,
-                        user_id=user_id,
-                        mission_type="send_messages",
+                        sender_user_id=user_id,
+                        content=content.strip(),
                         round_number=game.round_number,
                     )
                 )
+
+                for mission in updated_missions:
+                    await event_repository.create_event(
+                        db=db,
+                        game_id=game.id,
+                        round_number=game.round_number,
+                        event_type="mission_progress",
+                        user_id=mission.assigned_to_user_id,
+                        payload={
+                            "mission_id": mission.id,
+                            "mission_type": mission.mission_type,
+                            "current_value": mission.current_value,
+                            "target_value": mission.target_value,
+                            "status": mission.status,
+                            "triggered_by_user_id": user_id,
+                        },
+                    )
 
             # ------------------------------------------
             # Commit chat + mission progress
@@ -198,7 +230,7 @@ async def handle_message(
             # ------------------------------------------
 
             if (
-                updated_mission is not None
+                updated_missions
                 and game is not None
             ):
                 win_result = await check_win_condition(
@@ -207,13 +239,35 @@ async def handle_message(
                 )
 
                 if win_result.game_over:
+                    scores = await calculate_final_scores(
+                        db=db,
+                        game_id=game.id,
+                    )
+
                     game.status = "completed"
                     game.phase = "game_over"
                     room.status = "completed"
 
+                    await event_repository.create_event(
+                        db=db,
+                        game_id=game.id,
+                        round_number=game.round_number,
+                        event_type="game_over",
+                        payload={
+                            "winner": win_result.winner,
+                            "reason": win_result.reason,
+                        },
+                    )
+
                     await db.commit()
                     await db.refresh(game)
                     await db.refresh(room)
+
+                    game_players = (
+                        await game_repository.get_game_players(
+                            db, game_id=game.id
+                        )
+                    )
 
         except Exception:
             await db.rollback()
@@ -230,10 +284,10 @@ async def handle_message(
         # PRIVATE MISSION PROGRESS EVENT
         # --------------------------------------------------
 
-        if updated_mission is not None:
+        for updated_mission in updated_missions:
             await manager.send_to_user(
                 room_code=room_code,
-                user_id=user_id,
+                user_id=updated_mission.assigned_to_user_id,
                 message={
                     "type": "MISSION_PROGRESS",
                     "mission": {
@@ -289,6 +343,12 @@ async def handle_message(
             and win_result.game_over
             and game is not None
         ):
+            game_players = (
+                await game_repository.get_game_players(
+                    db, game_id=game.id
+                )
+            )
+
             await manager.broadcast_to_room(
                 room_code=room_code,
                 message={
@@ -301,6 +361,14 @@ async def handle_message(
                     },
                     "winner": win_result.winner,
                     "reason": win_result.reason,
+                    "scores": [
+                        {
+                            "user_id": gp.user_id,
+                            "role": gp.role,
+                            "score": gp.score,
+                        }
+                        for gp in game_players
+                    ],
                 },
             )
 
@@ -372,6 +440,19 @@ async def handle_message(
                 voter_user_id=user_id,
                 target_user_id=target_user_id,
             )
+
+            await event_repository.create_event(
+                db=db,
+                game_id=game.id,
+                round_number=game.round_number,
+                event_type="vote_cast",
+                user_id=user_id,
+                payload={
+                    "target_user_id": target_user_id,
+                },
+            )
+
+            await db.commit()
 
         except ValueError as exc:
             await websocket.send_json(
@@ -492,6 +573,44 @@ async def broadcast_room_state(
         room_code=room_code,
         message=message,
     )
+
+
+async def send_chat_history_to_user(
+    db: AsyncSession,
+    websocket: WebSocket,
+    room_code: str,
+    limit: int = 100,
+) -> None:
+    room = await room_repository.get_by_code(
+        db,
+        room_code,
+    )
+
+    if room is None:
+        return
+
+    messages = await chat_repository.get_room_messages(
+        db=db,
+        room_id=room.id,
+        limit=limit,
+    )
+
+    await websocket.send_json(
+        {
+            "type": "CHAT_HISTORY",
+            "messages": [
+                {
+                    "id": message.id,
+                    "user_id": message.user_id,
+                    "username": username,
+                    "content": message.content,
+                    "created_at": message.created_at.isoformat(),
+                }
+                for message, username in messages
+            ],
+        }
+    )
+
 
 async def send_game_state_to_user(
     db: AsyncSession,

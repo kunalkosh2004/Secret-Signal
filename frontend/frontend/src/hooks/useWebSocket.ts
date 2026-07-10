@@ -18,6 +18,25 @@ import type {
 } from '../features/room/types/game.types'
 import type { ChatMessage } from '../features/chat/types/chat.types'
 
+function mergeChatMessages(previous: ChatMessage[], incoming: ChatMessage[]): ChatMessage[] {
+  const messagesById = new Map<number, ChatMessage>()
+  const optimisticMessages = previous.filter((message) => message.id < 0)
+
+  for (const message of previous) {
+    if (message.id >= 0) {
+      messagesById.set(message.id, message)
+    }
+  }
+
+  for (const message of incoming) {
+    messagesById.set(message.id, message)
+  }
+
+  return [...messagesById.values(), ...optimisticMessages].sort(
+    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+  )
+}
+
 interface UseWebSocketResult {
   isConnected: boolean
   lastRoomState: RoomStateEvent | null
@@ -146,6 +165,9 @@ export function useWebSocket(roomCode: string | null): UseWebSocketResult {
             case 'VOTE_CAST':
               setLastVoteCast(data)
               break
+            case 'CHAT_HISTORY':
+              setChatMessages((prev) => mergeChatMessages(prev, data.messages))
+              break
             case 'MESSAGE_SENT':
               setChatMessages((prev) => {
                 // Replace optimistic message with real one from server
@@ -157,7 +179,7 @@ export function useWebSocket(roomCode: string | null): UseWebSocketResult {
                   next[idx] = data.message
                   return next
                 }
-                return [...prev, data.message]
+                return mergeChatMessages(prev, [data.message])
               })
               break
           }

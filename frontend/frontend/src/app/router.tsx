@@ -5,6 +5,7 @@ import { GoogleCallbackPage } from '../features/auth/pages/GoogleCallbackPage'
 import { LobbyPage } from '../pages/LobbyPage'
 import { RoomPage } from '../features/room/pages/RoomPage'
 import { GamePage } from '../features/game/pages/GamePage'
+import { AnalysisPage } from '../features/analysis/pages/AnalysisPage'
 import { NotFound } from '../pages/NotFound'
 
 export const router = () => {
@@ -17,6 +18,7 @@ export const router = () => {
         <Route path="/lobby" element={<LobbyPage />} />
         <Route path="/room/:code" element={<RoomPage />} />
         <Route path="/game/:code" element={<GamePage />} />
+        <Route path="/game/:gameId/analysis" element={<AnalysisPage />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>

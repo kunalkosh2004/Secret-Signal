@@ -17,6 +17,7 @@ from app.game_engine.models import Game, GamePlayer
 from app.missions.models import Mission
 from app.chat.models import Message
 from app.voting.models import Vote
+from app.events.models import GameEvent
 
 config = context.config
 

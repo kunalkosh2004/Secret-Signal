@@ -7,6 +7,8 @@ from app.game_engine.schemas import WinConditionResult
 from app.missions.service import generate_missions
 from app.rooms import repository as room_repository
 from app.missions import repository as mission_repository
+from app.events import repository as event_repository
+from app.voting import repository as vote_repository
 from app.game_engine.state_machine import (
     GamePhase,
     validate_transition,
@@ -119,6 +121,22 @@ async def start_game(
             round_number=game.round_number,
         )
 
+        await event_repository.create_event(
+            db=db,
+            game_id=game.id,
+            round_number=game.round_number,
+            event_type="game_started",
+            user_id=requester_id,
+            payload={
+                "room_code": room.code,
+                "player_count": len(user_ids),
+                "roles": {
+                    str(user_id): role
+                    for user_id, role in role_assignments.items()
+                },
+            },
+        )
+
         room.status = "in_game"
 
         await db.commit()
@@ -165,6 +183,17 @@ async def advance_phase(
         )
 
     game.phase = next_phase.value
+
+    await event_repository.create_event(
+        db=db,
+        game_id=game.id,
+        round_number=game.round_number,
+        event_type="phase_changed",
+        payload={
+            "from_phase": current_phase.value,
+            "to_phase": next_phase.value,
+        },
+    )
 
     if (
         current_phase == GamePhase.RESULT
@@ -244,3 +273,96 @@ async def check_win_condition(
         winner=None,
         reason=None,
     )
+
+
+async def calculate_final_scores(
+    db: AsyncSession,
+    game_id: int,
+) -> dict[int, int]:
+    game = await game_repository.get_by_id(
+        db, game_id=game_id
+    )
+
+    if game is None:
+        raise ValueError("Game not found")
+
+    game_players = await game_repository.get_game_players(
+        db, game_id=game_id
+    )
+
+    coordinator = next(
+        (gp for gp in game_players if gp.role == "coordinator"),
+        None,
+    )
+
+    if coordinator is None:
+        return {gp.user_id: 0 for gp in game_players}
+
+    completed_missions = (
+        await mission_repository.count_completed_missions(
+            db=db, game_id=game_id
+        )
+    )
+
+    mission_score = completed_missions * 10
+
+    incorrect_accusations = 0
+    for r in range(1, game.round_number + 1):
+        votes = await vote_repository.get_votes_for_round(
+            db=db, game_id=game_id, round_number=r
+        )
+        if not votes:
+            continue
+
+        vote_counts: dict[int, int] = {}
+        for vote in votes:
+            vote_counts[vote.target_user_id] = (
+                vote_counts.get(vote.target_user_id, 0) + 1
+            )
+
+        if not vote_counts:
+            continue
+
+        top_target = max(vote_counts, key=vote_counts.get)
+        if top_target != coordinator.user_id:
+            incorrect_accusations += 1
+
+    correct_accusations = 0
+    for r in range(1, game.round_number + 1):
+        votes = await vote_repository.get_votes_for_round(
+            db=db, game_id=game_id, round_number=r
+        )
+        if not votes:
+            continue
+
+        vote_counts: dict[int, int] = {}
+        for vote in votes:
+            vote_counts[vote.target_user_id] = (
+                vote_counts.get(vote.target_user_id, 0) + 1
+            )
+
+        if not vote_counts:
+            continue
+
+        top_target = max(vote_counts, key=vote_counts.get)
+        if top_target == coordinator.user_id:
+            correct_accusations += 1
+
+    scores: dict[int, int] = {}
+
+    coordinator_score = (
+        mission_score + incorrect_accusations * 5
+    )
+    scores[coordinator.user_id] = coordinator_score
+
+    for gp in game_players:
+        if gp.role == "coordinator":
+            continue
+        scores[gp.user_id] = correct_accusations * 10
+
+    for gp in game_players:
+        gp.score = scores.get(gp.user_id, 0)
+
+    await db.flush()
+
+    return scores

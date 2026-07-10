@@ -34,8 +34,8 @@ async def get_room_messages(
         select(Message, User.username)
         .join(User, User.id == Message.user_id)
         .where(Message.room_id == room_id)
-        .order_by(Message.created_at.asc())
+        .order_by(Message.created_at.desc())
         .limit(limit)
     )
 
-    return list(result.all())
+    return list(reversed(result.all()))

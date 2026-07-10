@@ -111,3 +111,16 @@ async def get_player_by_role(
     )
 
     return result.scalar_one_or_none()
+
+
+async def get_game_players_for_user(
+    db: AsyncSession,
+    user_id: int,
+) -> list[GamePlayer]:
+    result = await db.execute(
+        select(GamePlayer).where(
+            GamePlayer.user_id == user_id
+        )
+    )
+
+    return list(result.scalars().all())

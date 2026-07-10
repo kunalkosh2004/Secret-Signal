@@ -29,6 +29,13 @@ export interface GameOverEvent {
   }
   winner: string
   reason: string
+  scores?: GameScore[]
+}
+
+export interface GameScore {
+  user_id: number
+  role: string
+  score: number
 }
 
 export interface MissionAssignmentEvent {

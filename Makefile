@@ -1,4 +1,4 @@
-.PHONY: help install frontend backend dev-up dev-down dev-logs test frontend-dev backend-dev lint format
+.PHONY: help install frontend backend dev-up dev-down dev-logs migrate test frontend-dev backend-dev lint format
 
 help:
 	@echo "Available targets:"
@@ -8,6 +8,7 @@ help:
 	@echo "  dev-up               - Start development infrastructure (PostgreSQL, Redis)"
 	@echo "  dev-down             - Stop development infrastructure"
 	@echo "  dev-logs             - View logs for development infrastructure"
+	@echo "  migrate              - Apply backend database migrations"
 	@echo "  test                 - Run tests for both frontend and backend"
 	@echo "  frontend-test        - Run frontend tests"
 	@echo "  backend-test         - Run backend tests"
@@ -39,6 +40,10 @@ dev-down:
 dev-logs:
 	@echo "Showing logs for development services..."
 	docker-compose logs -f
+
+migrate:
+	@echo "Applying backend database migrations..."
+	cd backend && uv run alembic upgrade head
 
 test:
 	@echo "Running all tests..."

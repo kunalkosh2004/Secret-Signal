@@ -1,7 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from typing import Optional
 from sqlalchemy import func, select
+from typing import Optional
 
 from app.missions.models import Mission
 
@@ -110,6 +109,27 @@ async def get_active_mission_by_type(
     )
 
     return result.scalar_one_or_none()
+
+
+async def get_active_user_missions(
+    db: AsyncSession,
+    game_id: int,
+    user_id: int,
+    round_number: int,
+) -> list[Mission]:
+    result = await db.execute(
+        select(Mission)
+        .where(
+            Mission.game_id == game_id,
+            Mission.assigned_to_user_id == user_id,
+            Mission.round_number == round_number,
+            Mission.status == "active",
+        )
+        .order_by(Mission.id.asc())
+    )
+
+    return list(result.scalars().all())
+
 
 async def count_completed_missions(
     db: AsyncSession,

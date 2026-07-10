@@ -10,3 +10,8 @@ export interface ChatMessageSentEvent {
   type: 'MESSAGE_SENT'
   message: ChatMessage
 }
+
+export interface ChatHistoryEvent {
+  type: 'CHAT_HISTORY'
+  messages: ChatMessage[]
+}

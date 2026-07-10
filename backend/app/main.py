@@ -9,6 +9,8 @@ from app.auth.router import router as auth_router
 from app.rooms.router import router as rooms_router
 from app.game_engine.router import router as games_router
 from app.chat.router import router as chat_router
+from app.voting.router import router as votes_router
+from app.analytics.router import router as analytics_router
 from app.rooms import repository as room_repository
 from app.core.exceptions import AppException
 
@@ -18,6 +20,7 @@ from app.websocket.handlers import (
     authorize_room_connection,
     broadcast_room_state,
     handle_message,
+    send_chat_history_to_user,
     send_game_state_to_user,
 )
 from app.websocket.manager import manager
@@ -72,6 +75,12 @@ async def websocket_endpoint(
         )
         await broadcast_room_state(
             db=db,
+            room_code=room_code,
+        )
+
+        await send_chat_history_to_user(
+            db=db,
+            websocket=websocket,
             room_code=room_code,
         )
 
@@ -172,6 +181,8 @@ app.include_router(auth_router)
 app.include_router(rooms_router)
 app.include_router(games_router)
 app.include_router(chat_router)
+app.include_router(votes_router)
+app.include_router(analytics_router)
 
 
 # ---------------------------------------------------------------------------

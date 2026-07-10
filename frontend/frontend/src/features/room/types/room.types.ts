@@ -54,7 +54,10 @@ import type {
   VoteResultsEvent,
   VoteCastEvent,
 } from './game.types'
-import type { ChatMessageSentEvent } from '../../chat/types/chat.types'
+import type {
+  ChatHistoryEvent,
+  ChatMessageSentEvent,
+} from '../../chat/types/chat.types'
 
 export type WsServerEvent =
   | RoomStateEvent
@@ -68,6 +71,7 @@ export type WsServerEvent =
   | VoteResultsEvent
   | VoteCastEvent
   | ChatMessageSentEvent
+  | ChatHistoryEvent
 
 export type WsClientEvent =
   | { type: 'PLAYER_READY'; payload: { ready: boolean } }

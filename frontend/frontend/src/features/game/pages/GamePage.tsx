@@ -9,8 +9,9 @@ import { RoleReveal } from '../components/RoleReveal'
 import { ChatPanel } from '../../chat/components/ChatPanel'
 import { VotePanel } from '../components/VotePanel'
 import { MissionPanel } from '../components/MissionPanel'
+import { ScoreBoard } from '../components/ScoreBoard'
 import type { RoomResponse } from '../../room/types/room.types'
-import type { MissionData } from '../../room/types/game.types'
+import type { MissionData, GameScore } from '../../room/types/game.types'
 
 const PHASE_FLOW: Record<string, string | null> = {
   role_assignment: 'round_start',
@@ -49,7 +50,7 @@ export function GamePage() {
   const [round, setRound] = useState(1)
   const [missions, setMissions] = useState<MissionData[]>([])
   const [missionFeedback, setMissionFeedback] = useState<string | null>(null)
-  const [finalResult, setFinalResult] = useState<{ winner: string; reason: string } | null>(null)
+  const [finalResult, setFinalResult] = useState<{ winner: string; reason: string; scores?: GameScore[] } | null>(null)
   const [voteResults, setVoteResults] = useState<VoteResults | null>(null)
   const [myVote, setMyVote] = useState<number | null>(null)
   const [advancing, setAdvancing] = useState(false)
@@ -167,7 +168,11 @@ export function GamePage() {
     if (lastGameOver) {
       setPhase('game_over')
       setRound(lastGameOver.game.round_number)
-      setFinalResult({ winner: lastGameOver.winner, reason: lastGameOver.reason })
+      setFinalResult({
+        winner: lastGameOver.winner,
+        reason: lastGameOver.reason,
+        scores: lastGameOver.scores,
+      })
     }
   }, [lastGameOver])
 
@@ -513,6 +518,14 @@ export function GamePage() {
                 Your role was: <strong className="text-gray-900">{role?.toUpperCase()}</strong>
               </div>
 
+              {/* Scores */}
+              {finalResult?.scores && finalResult.scores.length > 0 && (
+                <div className="max-w-md mx-auto text-left">
+                  <div className="text-[10px] font-mono tracking-wider text-gray-500 mb-2 text-center">FINAL SCORES</div>
+                  <ScoreBoard players={finalResult.scores} />
+                </div>
+              )}
+
               {/* Chat */}
               <div className="h-[300px] mt-4">
                 {user && (
@@ -524,12 +537,22 @@ export function GamePage() {
                 )}
               </div>
 
-              <Link
-                to="/lobby"
-                className="inline-block mt-6 px-6 py-2 border border-gray-400/30 rounded text-sm font-mono text-gray-600 hover:text-gray-900 hover:border-gray-400 transition-all"
-              >
-                BACK TO LOBBY
-              </Link>
+              <div className="flex gap-3 justify-center">
+                <Link
+                  to="/lobby"
+                  className="px-6 py-2 border border-gray-400/30 rounded text-sm font-mono text-gray-600 hover:text-gray-900 hover:border-gray-400 transition-all"
+                >
+                  BACK TO LOBBY
+                </Link>
+                {gameId > 0 && (
+                  <Link
+                    to={`/game/${gameId}/analysis`}
+                    className="px-6 py-2 border border-accent/50 rounded text-sm font-mono text-accent bg-accent/10 hover:bg-accent/20 transition-all"
+                  >
+                    VIEW AI ANALYSIS
+                  </Link>
+                )}
+              </div>
             </div>
           )}
 

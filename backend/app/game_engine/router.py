@@ -11,6 +11,7 @@ from app.game_engine.service import (
     advance_phase as advance_phase_service,
     start_game as start_game_service,
     check_win_condition,
+    calculate_final_scores,
 )
 from app.users.models import User
 from app.game_engine import repository as game_repository
@@ -179,6 +180,11 @@ async def advance_phase(
         )
 
         if win_result.game_over:
+            scores = await calculate_final_scores(
+                db=db,
+                game_id=game.id,
+            )
+
             game.status = "completed"
             game.phase = GamePhase.GAME_OVER.value
 
@@ -188,6 +194,12 @@ async def advance_phase(
 
             await db.refresh(game)
             await db.refresh(room)
+
+            game_players = (
+                await game_repository.get_game_players(
+                    db, game_id=game.id
+                )
+            )
 
             await manager.broadcast_to_room(
                 room_code=room.code,
@@ -201,6 +213,14 @@ async def advance_phase(
                     },
                     "winner": win_result.winner,
                     "reason": win_result.reason,
+                    "scores": [
+                        {
+                            "user_id": gp.user_id,
+                            "role": gp.role,
+                            "score": gp.score,
+                        }
+                        for gp in game_players
+                    ],
                 },
             )
 
