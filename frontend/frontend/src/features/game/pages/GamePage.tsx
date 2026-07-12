@@ -1,9 +1,8 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import { useAuthStore } from '../../../stores/authStore'
 import { useWebSocket } from '../../../hooks/useWebSocket'
 import { getRoom } from '../../room/services/roomApi'
-import { advancePhase } from '../../room/services/gameApi'
 import { PhaseBanner } from '../components/PhaseBanner'
 import { RoleReveal } from '../components/RoleReveal'
 import { ChatPanel } from '../../chat/components/ChatPanel'
@@ -11,19 +10,46 @@ import { VotePanel } from '../components/VotePanel'
 import { MissionPanel } from '../components/MissionPanel'
 import { ScoreBoard } from '../components/ScoreBoard'
 import type { RoomResponse } from '../../room/types/room.types'
-import type { MissionData, GameScore } from '../../room/types/game.types'
+import type { MissionData, GameScore, VoteResults } from '../../room/types/game.types'
 
-const PHASE_FLOW: Record<string, string | null> = {
-  role_assignment: 'round_start',
-  round_start: 'interaction',
-  interaction: 'evaluation',
-  evaluation: 'discussion',
-  discussion: 'voting',
-  voting: 'result',
-  result: null, // host chooses: advance to round_start or game_over
+function Timer({ endsAt }: { endsAt: string | null }) {
+  const [remaining, setRemaining] = useState<number>(-1)
+
+  useEffect(() => {
+    if (!endsAt) {
+      setRemaining(-1)
+      return
+    }
+
+    const update = () => {
+      const end = new Date(endsAt).getTime()
+      const now = Date.now()
+      const diff = Math.max(0, Math.ceil((end - now) / 1000))
+      setRemaining(diff)
+    }
+
+    update()
+    const interval = setInterval(update, 1000)
+    return () => clearInterval(interval)
+  }, [endsAt])
+
+  if (remaining < 0) return null
+
+  const minutes = Math.floor(remaining / 60)
+  const seconds = remaining % 60
+  const isLow = remaining <= 10
+
+  return (
+    <div className={`text-center mb-4 ${isLow ? 'animate-pulse' : ''}`}>
+      <span className={`text-3xl font-mono font-bold tracking-wider ${
+        isLow ? 'text-red-500' : 'text-gray-900'
+      }`}>
+        {minutes}:{seconds.toString().padStart(2, '0')}
+      </span>
+      <div className="text-[10px] font-mono text-gray-500 mt-1">TIME REMAINING</div>
+    </div>
+  )
 }
-
-import type { VoteResults } from '../../room/types/game.types'
 
 export function GamePage() {
   const { code } = useParams<{ code: string }>()
@@ -39,6 +65,7 @@ export function GamePage() {
     lastMissionProgress,
     lastVoteResults,
     lastVoteCast,
+    lastTimerUpdated,
     isConnected,
     chatMessages,
     sendMessage,
@@ -53,42 +80,35 @@ export function GamePage() {
   const [finalResult, setFinalResult] = useState<{ winner: string; reason: string; scores?: GameScore[] } | null>(null)
   const [voteResults, setVoteResults] = useState<VoteResults | null>(null)
   const [myVote, setMyVote] = useState<number | null>(null)
-  const [advancing, setAdvancing] = useState(false)
+  const [timerEndsAt, setTimerEndsAt] = useState<string | null>(null)
 
-  // Derived values (defined before effects that reference them)
   const gamePhase = phase || lastPhaseChanged?.game?.phase || 'role_assignment'
   const gameRound = round || lastPhaseChanged?.game?.round_number || 1
-  const isHost = user?.id === room?.host_id
   const isCoordinator = role === 'coordinator'
   const playerList = lastRoomState?.players ?? []
   const gameId = lastRoleAssignment?.game_id ?? lastGameState?.game.id ?? lastGameOver?.game.id ?? 0
 
-  // Redirect to auth if not authenticated
   useEffect(() => {
     if (!isAuthenticated) {
       navigate('/auth', { replace: true })
     }
   }, [isAuthenticated, navigate])
 
-  // Fetch room metadata
   useEffect(() => {
     if (!isAuthenticated || !code) return
     getRoom(code).then(setRoom).catch(() => navigate('/lobby', { replace: true }))
   }, [isAuthenticated, code, navigate])
 
-  // Update room state from WS
   useEffect(() => {
     if (lastRoomState) setRoom(lastRoomState.room)
   }, [lastRoomState])
 
-  // Handle private role assignment (only set role — phase/round managed by GAME_STATE)
   useEffect(() => {
     if (lastRoleAssignment) {
       setRole(lastRoleAssignment.role)
     }
   }, [lastRoleAssignment])
 
-  // Sync phase/round from GAME_STATE (covers initial connect + reconnect)
   useEffect(() => {
     if (lastGameState) {
       setPhase(lastGameState.game.phase)
@@ -96,14 +116,13 @@ export function GamePage() {
     }
   }, [lastGameState])
 
-  // Handle phase changes
   useEffect(() => {
     if (lastPhaseChanged) {
       setPhase('')
       setMissionFeedback(null)
       setVoteResults(null)
       setMyVote(null)
-      setAdvancing(false)
+      setTimerEndsAt(null)
       const timer = setTimeout(() => {
         setPhase(lastPhaseChanged.game.phase)
         setRound(lastPhaseChanged.game.round_number)
@@ -112,14 +131,18 @@ export function GamePage() {
     }
   }, [lastPhaseChanged])
 
-  // Handle mission assignment
+  useEffect(() => {
+    if (lastTimerUpdated) {
+      setTimerEndsAt(lastTimerUpdated.ends_at)
+    }
+  }, [lastTimerUpdated])
+
   useEffect(() => {
     if (lastMissionAssignment) {
       setMissions(lastMissionAssignment.missions)
     }
   }, [lastMissionAssignment])
 
-  // Handle mission progress
   useEffect(() => {
     if (lastMissionProgress) {
       setMissions((prev) =>
@@ -137,33 +160,18 @@ export function GamePage() {
     }
   }, [lastMissionProgress])
 
-  // Handle vote results
   useEffect(() => {
     if (lastVoteResults) {
       setVoteResults(lastVoteResults.results)
     }
   }, [lastVoteResults])
 
-  // Track own vote
   useEffect(() => {
     if (lastVoteCast) {
       setMyVote(lastVoteCast.target_user_id)
     }
   }, [lastVoteCast])
 
-  // Auto-advance from role_assignment → round_start after 6s (role reveal animation)
-  useEffect(() => {
-    if (!isHost || gamePhase !== 'role_assignment' || !role) return
-    const timer = setTimeout(() => {
-      const next = PHASE_FLOW['role_assignment']
-      if (!next || !gameId) return
-      setAdvancing(true)
-      advancePhase(gameId, next).then(() => setAdvancing(false)).catch(() => setAdvancing(false))
-    }, 6000)
-    return () => clearTimeout(timer)
-  }, [isHost, gamePhase, role, gameId])
-
-  // Handle game over
   useEffect(() => {
     if (lastGameOver) {
       setPhase('game_over')
@@ -183,18 +191,6 @@ export function GamePage() {
   const handleVote = useCallback((targetUserId: number) => {
     sendMessage({ type: 'CAST_VOTE', payload: { target_user_id: targetUserId } })
   }, [sendMessage])
-
-  const handleAdvancePhase = async () => {
-    const nextPhase = PHASE_FLOW[phase]
-    if (!nextPhase || !gameId) return
-    setAdvancing(true)
-    try {
-      await advancePhase(gameId, nextPhase)
-    } catch {
-      // Phase change will come via WS on success
-    }
-    setAdvancing(false)
-  }
 
   if (!isAuthenticated) {
     return null
@@ -240,6 +236,30 @@ export function GamePage() {
           <PhaseBanner phase={gamePhase} round={gameRound} />
         </div>
 
+        {/* Player strip — always visible */}
+        {playerList.length > 0 && (
+          <div className="flex flex-wrap gap-2 items-center mb-4 animate-fade-in-up" style={{ animationDelay: '0.15s' }}>
+            {playerList.map((p) => (
+              <div
+                key={p.id}
+                className={`px-3 py-1.5 border rounded text-xs font-mono flex items-center gap-1.5 ${
+                  p.id === user?.id
+                    ? 'border-accent/40 bg-accent/10 text-accent'
+                    : 'border-gray-400/30 bg-gray-100 text-gray-700'
+                }`}
+              >
+                <span>{p.username}</span>
+                {p.id === user?.id && <span className="opacity-50">(YOU)</span>}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Timer */}
+        {timerEndsAt && gamePhase !== 'game_over' && gamePhase !== 'voting' && (
+          <Timer endsAt={timerEndsAt} />
+        )}
+
         {/* Content */}
         <div className="animate-fade-in-up" style={{ animationDelay: '0.15s' }}>
           {/* ============ ROLE ASSIGNMENT ============ */}
@@ -279,34 +299,12 @@ export function GamePage() {
                   <MissionPanel missions={missions} />
                 </div>
               )}
-              {isHost && (
-                <button
-                  onClick={handleAdvancePhase}
-                  disabled={advancing}
-                  className="mt-6 px-6 py-2 border border-accent/50 rounded text-sm font-mono text-gray-900 bg-accent/10 hover:bg-accent/20 disabled:opacity-40 transition-all"
-                >
-                  START INTERACTION
-                </button>
-              )}
             </div>
           )}
 
           {/* ============ INTERACTION ============ */}
           {gamePhase === 'interaction' && (
             <div className="space-y-4">
-              {/* Player strip */}
-              <div className="flex flex-wrap gap-2 items-center">
-                {playerList.map((p) => (
-                  <div
-                    key={p.id}
-                    className="px-3 py-1.5 border border-gray-400/30 rounded bg-gray-100 text-xs font-mono flex items-center gap-1.5"
-                  >
-                    <span className="text-gray-900">{p.username}</span>
-                    {p.id === user?.id && <span className="text-gray-500">(YOU)</span>}
-                  </div>
-                ))}
-              </div>
-
               {/* Coordinator mission panel */}
               {isCoordinator && missions.length > 0 && <MissionPanel missions={missions} />}
 
@@ -327,53 +325,6 @@ export function GamePage() {
                   />
                 )}
               </div>
-
-              {/* Host controls */}
-              {isHost && (
-                <div className="flex justify-center">
-                  <button
-                    onClick={handleAdvancePhase}
-                    disabled={advancing}
-                    className="px-6 py-2 border border-accent/50 rounded text-sm font-mono text-gray-900 bg-accent/10 hover:bg-accent/20 disabled:opacity-40 transition-all"
-                  >
-                    END INTERACTION
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ============ EVALUATION ============ */}
-          {gamePhase === 'evaluation' && (
-            <div className="text-center py-16 space-y-4 animate-fade-in">
-              <div className="text-sm font-mono tracking-wider text-gray-600">
-                EVALUATION
-              </div>
-              <p className="text-sm font-mono text-gray-600 max-w-md mx-auto leading-relaxed">
-                Missions are being evaluated. Discuss with other players before the voting phase.
-              </p>
-              {isCoordinator && missions.length > 0 && <MissionPanel missions={missions} />}
-
-              {/* Chat */}
-              <div className="h-[300px] mt-4">
-                {user && (
-                  <ChatPanel
-                    messages={chatMessages}
-                    onSend={handleSendMessage}
-                    currentUserId={user.id}
-                  />
-                )}
-              </div>
-
-              {isHost && (
-                <button
-                  onClick={handleAdvancePhase}
-                  disabled={advancing}
-                  className="mt-4 px-6 py-2 border border-accent/50 rounded text-sm font-mono text-gray-900 bg-accent/10 hover:bg-accent/20 disabled:opacity-40 transition-all"
-                >
-                  START DISCUSSION
-                </button>
-              )}
             </div>
           )}
 
@@ -394,18 +345,6 @@ export function GamePage() {
                   />
                 )}
               </div>
-
-              {isHost && (
-                <div className="flex justify-center">
-                  <button
-                    onClick={handleAdvancePhase}
-                    disabled={advancing}
-                    className="px-6 py-2 border border-accent/50 rounded text-sm font-mono text-gray-900 bg-accent/10 hover:bg-accent/20 disabled:opacity-40 transition-all"
-                  >
-                    START VOTING
-                  </button>
-                </div>
-              )}
             </div>
           )}
 
@@ -422,15 +361,9 @@ export function GamePage() {
                 disabled={gamePhase !== 'voting'}
                 targetUserId={myVote}
               />
-              {isHost && (
-                <div className="flex justify-center">
-                  <button
-                    onClick={handleAdvancePhase}
-                    disabled={advancing}
-                    className="px-6 py-2 border border-accent/50 rounded text-sm font-mono text-gray-900 bg-accent/10 hover:bg-accent/20 disabled:opacity-40 transition-all"
-                  >
-                    REVEAL RESULTS
-                  </button>
+              {myVote && (
+                <div className="text-center text-xs font-mono text-gray-500">
+                  Waiting for other players to vote...
                 </div>
               )}
             </div>
@@ -469,34 +402,6 @@ export function GamePage() {
                   />
                 )}
               </div>
-
-              {isHost && (
-                <div className="flex gap-3 justify-center mt-4">
-                  {gameRound < 5 && (
-                    <button
-                      onClick={handleAdvancePhase}
-                      disabled={advancing}
-                      className="px-6 py-2 border border-accent/50 rounded text-sm font-mono text-gray-900 bg-accent/10 hover:bg-accent/20 disabled:opacity-40 transition-all"
-                    >
-                      NEXT ROUND
-                    </button>
-                  )}
-                  <button
-                    onClick={async () => {
-                      if (!gameId) return
-                      setAdvancing(true)
-                      try {
-                        await advancePhase(gameId, 'game_over')
-                      } catch {}
-                      setAdvancing(false)
-                    }}
-                    disabled={advancing}
-                    className="px-6 py-2 border border-red-500/50 rounded text-sm font-mono text-red-400 bg-red-500/10 hover:bg-red-500/20 disabled:opacity-40 transition-all"
-                  >
-                    END GAME
-                  </button>
-                </div>
-              )}
             </div>
           )}
 
@@ -553,13 +458,6 @@ export function GamePage() {
                   </Link>
                 )}
               </div>
-            </div>
-          )}
-
-          {/* ============ WAITING FOR HOST ============ */}
-          {!['role_assignment', 'game_over', 'interaction', 'discussion', 'voting'].includes(gamePhase) && !isHost && (
-            <div className="text-center py-8 text-[10px] font-mono text-gray-600 animate-pulse">
-              Waiting for host to advance the phase...
             </div>
           )}
         </div>

@@ -85,3 +85,16 @@ export interface VoteCastEvent {
   type: 'VOTE_CAST'
   target_user_id: number
 }
+
+export interface TimerUpdatedEvent {
+  type: 'TIMER_UPDATED'
+  phase: string
+  duration_seconds: number
+  ends_at: string
+}
+
+export interface MLTrainedEvent {
+  type: 'ML_TRAINED'
+  accuracy: number | null
+  samples_used: number | null
+}

@@ -41,8 +41,11 @@ export function ChatPanel({ messages, onSend, currentUserId }: ChatPanelProps) {
                     : 'bg-gray-200 text-gray-700 border border-gray-400/20'
                 }`}
               >
-                <div className="text-[10px] font-mono text-gray-500 mb-0.5">
-                  {msg.username}
+                <div className="flex items-center gap-2 text-[10px] font-mono text-gray-500 mb-0.5">
+                  <span>{msg.username}</span>
+                  <span className="opacity-50">
+                    {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
                 </div>
                 <div>{msg.content}</div>
               </div>

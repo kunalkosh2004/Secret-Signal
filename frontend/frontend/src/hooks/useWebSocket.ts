@@ -15,6 +15,8 @@ import type {
   MissionProgressEvent,
   VoteResultsEvent,
   VoteCastEvent,
+  TimerUpdatedEvent,
+  MLTrainedEvent,
 } from '../features/room/types/game.types'
 import type { ChatMessage } from '../features/chat/types/chat.types'
 
@@ -49,6 +51,8 @@ interface UseWebSocketResult {
   lastMissionProgress: MissionProgressEvent | null
   lastVoteResults: VoteResultsEvent | null
   lastVoteCast: VoteCastEvent | null
+  lastTimerUpdated: TimerUpdatedEvent | null
+  lastMLTrained: MLTrainedEvent | null
   chatMessages: ChatMessage[]
   sendMessage: (event: WsClientEvent) => void
 }
@@ -65,6 +69,8 @@ export function useWebSocket(roomCode: string | null): UseWebSocketResult {
   const [lastMissionProgress, setLastMissionProgress] = useState<MissionProgressEvent | null>(null)
   const [lastVoteResults, setLastVoteResults] = useState<VoteResultsEvent | null>(null)
   const [lastVoteCast, setLastVoteCast] = useState<VoteCastEvent | null>(null)
+  const [lastTimerUpdated, setLastTimerUpdated] = useState<TimerUpdatedEvent | null>(null)
+  const [lastMLTrained, setLastMLTrained] = useState<MLTrainedEvent | null>(null)
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
   const wsRef = useRef<WebSocket | null>(null)
   const tokenRef = useRef<string | null>(null)
@@ -110,6 +116,8 @@ export function useWebSocket(roomCode: string | null): UseWebSocketResult {
       setLastMissionProgress(null)
       setLastVoteResults(null)
       setLastVoteCast(null)
+      setLastTimerUpdated(null)
+      setLastMLTrained(null)
       setChatMessages([])
       return
     }
@@ -164,6 +172,12 @@ export function useWebSocket(roomCode: string | null): UseWebSocketResult {
               break
             case 'VOTE_CAST':
               setLastVoteCast(data)
+              break
+            case 'TIMER_UPDATED':
+              setLastTimerUpdated(data)
+              break
+            case 'ML_TRAINED':
+              setLastMLTrained(data)
               break
             case 'CHAT_HISTORY':
               setChatMessages((prev) => mergeChatMessages(prev, data.messages))
@@ -226,6 +240,8 @@ export function useWebSocket(roomCode: string | null): UseWebSocketResult {
     lastMissionProgress,
     lastVoteResults,
     lastVoteCast,
+    lastTimerUpdated,
+    lastMLTrained,
     chatMessages,
     sendMessage,
   }

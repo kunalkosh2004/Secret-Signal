@@ -26,12 +26,25 @@ export function RoomPage() {
   const [isReady, setIsReady] = useState(false)
   const hostAutoReady = useRef(false)
 
+  const isHost = user?.id === room?.host_id
+
   useEffect(() => {
     if (!isAuthenticated || !code) return
     getRoom(code)
       .then(setRoom)
       .catch((err) => setError(err.message))
   }, [isAuthenticated, code])
+
+  // Update room data from WebSocket and sync ready state for current user
+  useEffect(() => {
+    if (lastRoomState) {
+      setRoom(lastRoomState.room)
+      const me = lastRoomState.players.find((p) => p.id === user?.id)
+      if (me && !isHost) {
+        setIsReady(me.is_ready ?? false)
+      }
+    }
+  }, [lastRoomState, user, isHost])
 
   // Host auto-ready: once WS is connected, mark host as ready
   useEffect(() => {
@@ -42,14 +55,6 @@ export function RoomPage() {
       hostAutoReady.current = true
     }
   }, [room, user, isConnected, sendMessage])
-
-  // Update room data from WebSocket — don't overwrite local isReady
-  // (it's managed optimistically and the count formula reconciles with server)
-  useEffect(() => {
-    if (lastRoomState) {
-      setRoom(lastRoomState.room)
-    }
-  }, [lastRoomState])
 
   // Redirect to auth if not authenticated
   useEffect(() => {
@@ -99,7 +104,6 @@ export function RoomPage() {
   }
 
   const players = lastRoomState?.players ?? []
-  const isHost = user?.id === room.host_id
   const playerCount = players.length
   const serverReadyCount = players.filter((p) => p.is_ready).length
   const readyCount = serverReadyCount + (isHost ? 1 : 0) // host always counts as ready

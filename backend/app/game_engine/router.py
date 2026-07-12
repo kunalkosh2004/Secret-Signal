@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
+from datetime import datetime, timedelta, timezone
 
 from app.auth.dependencies import get_current_user
-from app.db.session import get_db
+from app.db.session import get_db, SessionLocal
 from app.game_engine.schemas import (
     AdvancePhaseRequest,
     GameState,
@@ -20,6 +21,7 @@ from app.websocket.manager import manager
 from app.missions import repository as mission_repository
 from app.voting import service as voting_service
 from app.game_engine.state_machine import GamePhase
+from app.game_engine.timer import start_phase_timer, cancel_timer
 
 
 router = APIRouter(
@@ -47,6 +49,11 @@ async def start_game(
             requester_id=current_user.id,
         )
 
+        # Set phase_started_at for role_assignment phase
+        game.phase_started_at = datetime.now(timezone.utc)
+        await db.commit()
+        await db.refresh(game)
+
         await manager.broadcast_to_room(
             room_code=normalized_room_code,
             message={
@@ -59,6 +66,30 @@ async def start_game(
                     "phase": game.phase,
                 },
             },
+        )
+
+        # Send timer info
+        from app.game_engine.timer import PHASE_DURATIONS
+        duration = PHASE_DURATIONS.get(game.phase)
+        if duration:
+            await manager.broadcast_to_room(
+                room_code=normalized_room_code,
+                message={
+                    "type": "TIMER_UPDATED",
+                    "phase": game.phase,
+                    "duration_seconds": duration,
+                    "ends_at": (
+                        datetime.now(timezone.utc) + timedelta(seconds=duration)
+                    ).isoformat(),
+                },
+            )
+
+        # Start auto timer for role_assignment phase
+        await start_phase_timer(
+            db_factory=SessionLocal,
+            game_id=game.id,
+            room_code=normalized_room_code,
+            phase=game.phase,
         )
 
         return game
@@ -114,11 +145,8 @@ async def advance_phase(
             detail="Room not found",
         )
 
-    if room.host_id != current_user.id:
-        raise HTTPException(
-            status_code=403,
-            detail="Only the room host can advance the phase",
-        )
+    # Cancel existing timer
+    cancel_timer(game_id)
 
     try:
         game = await advance_phase_service(
@@ -127,6 +155,11 @@ async def advance_phase(
             next_phase=request.next_phase,
         )
 
+        # Set phase_started_at for new phase
+        game.phase_started_at = datetime.now(timezone.utc)
+        await db.commit()
+        await db.refresh(game)
+
     except ValueError as exc:
         raise HTTPException(
             status_code=400,
@@ -134,7 +167,7 @@ async def advance_phase(
         )
 
     # --------------------------------------------------
-    # BROADCAST PHASE CHANGE
+    # BROADCAST PHASE CHANGE + START TIMER
     # --------------------------------------------------
 
     await manager.broadcast_to_room(
@@ -148,6 +181,30 @@ async def advance_phase(
                 "phase": game.phase,
             },
         },
+    )
+
+    # Send timer info
+    from app.game_engine.timer import PHASE_DURATIONS
+    duration = PHASE_DURATIONS.get(game.phase)
+    if duration:
+        await manager.broadcast_to_room(
+            room_code=room.code,
+            message={
+                "type": "TIMER_UPDATED",
+                "phase": game.phase,
+                "duration_seconds": duration,
+                "ends_at": (
+                    datetime.now(timezone.utc) + timedelta(seconds=duration)
+                    ).isoformat(),
+            },
+        )
+
+    # Start auto timer for new phase
+    await start_phase_timer(
+        db_factory=SessionLocal,
+        game_id=game.id,
+        room_code=room.code,
+        phase=game.phase,
     )
 
     # --------------------------------------------------
@@ -225,6 +282,25 @@ async def advance_phase(
             )
 
             return game
+
+    # --------------------------------------------------
+    # TRAIN ML MODEL AFTER GAME OVER
+    # --------------------------------------------------
+
+    if request.next_phase == GamePhase.GAME_OVER:
+        try:
+            from app.ml.service import train_model
+            ml_result = await train_model(db=db)
+            await manager.broadcast_to_room(
+                room_code=room.code,
+                message={
+                    "type": "ML_TRAINED",
+                    "accuracy": ml_result.get("accuracy"),
+                    "samples_used": ml_result.get("samples_used"),
+                },
+            )
+        except Exception:
+            pass  # ML training is non-critical
 
     # --------------------------------------------------
     # SEND NEW ROUND MISSIONS TO COORDINATOR

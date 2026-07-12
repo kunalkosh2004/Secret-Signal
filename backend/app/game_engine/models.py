@@ -45,6 +45,11 @@ class Game(Base):
         default="role_assignment",
     )
 
+    phase_started_at = Column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
     created_at = Column(
         DateTime(timezone=True),
         server_default=func.now(),

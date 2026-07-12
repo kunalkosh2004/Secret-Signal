@@ -16,7 +16,9 @@ from app.game_engine.service import check_win_condition, calculate_final_scores
 from app.game_engine.state_machine import GamePhase
 from app.missions import repository as mission_repository
 from app.voting import service as voting_service
+from app.voting import repository as vote_repository
 from app.events import repository as event_repository
+from app.training import repository as training_repository
 
 
 async def handle_message(
@@ -181,6 +183,23 @@ async def handle_message(
                         "content": content.strip(),
                     },
                 )
+
+                # Store training data for ML
+                game_player = await game_repository.get_game_player(
+                    db,
+                    game_id=game.id,
+                    user_id=user_id,
+                )
+                if game_player is not None:
+                    await training_repository.create_training_message(
+                        db=db,
+                        game_id=game.id,
+                        user_id=user_id,
+                        role=game_player.role,
+                        phase=game.phase,
+                        content=content.strip(),
+                        round_number=game.round_number,
+                    )
 
             # ------------------------------------------
             # Evaluate chat-driven missions during interaction.
@@ -372,6 +391,21 @@ async def handle_message(
                 },
             )
 
+            # Train ML model after game over
+            try:
+                from app.ml.service import train_model
+                ml_result = await train_model(db=db)
+                await manager.broadcast_to_room(
+                    room_code=room_code,
+                    message={
+                        "type": "ML_TRAINED",
+                        "accuracy": ml_result.get("accuracy"),
+                        "samples_used": ml_result.get("samples_used"),
+                    },
+                )
+            except Exception:
+                pass  # ML training is non-critical
+
         return
 
     # --------------------------------------------------
@@ -470,6 +504,86 @@ async def handle_message(
             }
         )
 
+        # Check if all players have voted - auto advance to result
+        game_players = await game_repository.get_game_players(
+            db, game_id=game.id
+        )
+        total_players = len(game_players)
+        
+        votes = await vote_repository.get_votes_for_round(
+            db=db,
+            game_id=game.id,
+            round_number=game.round_number,
+        )
+        unique_voters = len(set(v.voter_user_id for v in votes))
+        
+        if unique_voters >= total_players:
+            # All players voted - auto advance to result
+            game.phase = GamePhase.RESULT.value
+            game.phase_started_at = None
+            
+            from app.game_engine.timer import cancel_timer
+            cancel_timer(game.id)
+            
+            await event_repository.create_event(
+                db=db,
+                game_id=game.id,
+                round_number=game.round_number,
+                event_type="phase_changed",
+                payload={
+                    "from_phase": GamePhase.VOTING.value,
+                    "to_phase": GamePhase.RESULT.value,
+                    "auto": True,
+                    "reason": "all_players_voted",
+                },
+            )
+            
+            await db.commit()
+            
+            # Get vote results
+            results = await vote_repository.tally_votes(
+                db=db,
+                game_id=game.id,
+                round_number=game.round_number,
+            )
+            
+            await manager.broadcast_to_room(
+                room_code=room_code,
+                message={
+                    "type": "VOTE_RESULTS",
+                    "results": {
+                        "round_number": game.round_number,
+                        "total_votes": len(votes),
+                        "tallies": [
+                            {"target_user_id": t[0], "count": t[1]}
+                            for t in results
+                        ],
+                    },
+                },
+            )
+            
+            await manager.broadcast_to_room(
+                room_code=room_code,
+                message={
+                    "type": "PHASE_CHANGED",
+                    "game": {
+                        "id": game.id,
+                        "phase": GamePhase.RESULT.value,
+                        "round_number": game.round_number,
+                    },
+                },
+            )
+            
+            # Start timer for result phase
+            from app.game_engine.timer import start_phase_timer
+            from app.db.session import SessionLocal
+            await start_phase_timer(
+                db_factory=SessionLocal,
+                game_id=game.id,
+                room_code=room_code,
+                phase=GamePhase.RESULT.value,
+            )
+        
         return
 
     # --------------------------------------------------

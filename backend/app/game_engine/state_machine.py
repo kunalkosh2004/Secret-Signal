@@ -6,7 +6,6 @@ class GamePhase(str, Enum):
     ROLE_ASSIGNMENT = "role_assignment"
     ROUND_START = "round_start"
     INTERACTION = "interaction"
-    EVALUATION = "evaluation"
     DISCUSSION = "discussion"
     VOTING = "voting"
     RESULT = "result"
@@ -26,10 +25,6 @@ VALID_TRANSITIONS = {
     },
 
     GamePhase.INTERACTION: {
-        GamePhase.EVALUATION,
-    },
-
-    GamePhase.EVALUATION: {
         GamePhase.DISCUSSION,
     },
 
