@@ -34,6 +34,7 @@ export interface GameOverEvent {
 
 export interface GameScore {
   user_id: number
+  username: string
   role: string
   score: number
 }
@@ -74,6 +75,8 @@ export interface VoteResults {
   round_number: number
   total_votes: number
   tallies: VoteTally[]
+  coordinator_identified: boolean
+  coordinator_user_id: number | null
 }
 
 export interface VoteResultsEvent {

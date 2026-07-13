@@ -1,0 +1,23 @@
+artifact_path: /Users/kunalkoshta/Desktop/Secret-Signal/backend/mlruns/1/models/m-53454299d3a34887bd799563616861d9/artifacts
+flavors:
+  python_function:
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.sklearn
+    model_path: model.skops
+    predict_fn: predict
+    python_version: 3.14.0
+  sklearn:
+    code: null
+    pickled_model: model.skops
+    serialization_format: skops
+    sklearn_version: 1.9.0
+    skops_trusted_types: null
+mlflow_version: 3.14.0
+model_id: m-53454299d3a34887bd799563616861d9
+model_size_bytes: 1704850
+model_uuid: m-53454299d3a34887bd799563616861d9
+prompts: null
+run_id: df38acf3f0b34778ae5d216b4838a0cb
+utc_time_created: '2026-07-13 17:02:35.252105'

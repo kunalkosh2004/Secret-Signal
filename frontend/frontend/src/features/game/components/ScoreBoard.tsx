@@ -19,7 +19,7 @@ export function ScoreBoard({ players }: ScoreBoardProps) {
           </span>
           <span className="w-2 h-2 rounded-full bg-accent" />
           <span className="text-sm font-mono text-gray-900 flex-1">
-            Player {player.user_id}
+            {player.username}
           </span>
           <span className="text-[10px] font-mono text-gray-500 uppercase mr-4">
             {player.role}

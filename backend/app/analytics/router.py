@@ -82,6 +82,7 @@ async def get_game_analysis(
             {
                 "user_id": p.user_id,
                 "role": p.role,
+                "username": p.username,
                 "message_count": p.message_count,
                 "questions_asked": p.questions_asked,
                 "topic_initiations": p.topic_initiations,

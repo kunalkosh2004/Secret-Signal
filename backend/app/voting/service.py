@@ -1,5 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.game_engine import repository as game_repository
 from app.voting import repository as vote_repository
 from app.voting.models import Vote
 from app.voting.schemas import VoteResults, VoteTally
@@ -49,6 +50,19 @@ async def tally_votes(
 
     total_votes = sum(count for _, count in tallies)
 
+    coordinator = await game_repository.get_player_by_role(
+        db=db,
+        game_id=game_id,
+        role="coordinator",
+    )
+    coordinator_identified = False
+    coordinator_user_id = None
+    if coordinator and tallies:
+        top_target = max(tallies, key=lambda t: t[1])[0]
+        if top_target == coordinator.user_id:
+            coordinator_identified = True
+            coordinator_user_id = coordinator.user_id
+
     return VoteResults(
         round_number=round_number,
         total_votes=total_votes,
@@ -56,4 +70,6 @@ async def tally_votes(
             VoteTally(target_user_id=user_id, count=count)
             for user_id, count in tallies
         ],
+        coordinator_identified=coordinator_identified,
+        coordinator_user_id=coordinator_user_id,
     )

@@ -15,6 +15,7 @@ from app.game_engine.service import (
     calculate_final_scores,
 )
 from app.users.models import User
+from app.users.repository import get_by_id as get_user_by_id
 from app.game_engine import repository as game_repository
 from app.rooms import repository as room_repository
 from app.websocket.manager import manager
@@ -275,6 +276,9 @@ async def advance_phase(
                             "user_id": gp.user_id,
                             "role": gp.role,
                             "score": gp.score,
+                            "username": (
+                                await get_user_by_id(db, gp.user_id)
+                            ).username,
                         }
                         for gp in game_players
                     ],

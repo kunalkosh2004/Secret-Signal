@@ -5,9 +5,14 @@ from collections import defaultdict
 
 import joblib
 import numpy as np
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score
+from sklearn.ensemble import (
+    RandomForestClassifier,
+    GradientBoostingClassifier,
+)
+from sklearn.linear_model import LogisticRegression
+from sklearn.svm import SVC
+from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.metrics import accuracy_score, f1_score
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import mlflow
@@ -22,6 +27,7 @@ BACKEND_ROOT = os.path.dirname(
 )
 MODEL_DIR = os.path.join(BACKEND_ROOT, "ml_models")
 MODEL_PATH = os.path.join(MODEL_DIR, "model.pkl")
+BEST_MODEL_META_PATH = os.path.join(MODEL_DIR, "best_model.json")
 
 EMOJI_PATTERN = re.compile(
     "["
@@ -34,6 +40,25 @@ EMOJI_PATTERN = re.compile(
     "]+",
     flags=re.UNICODE,
 )
+
+
+MODEL_REGISTRY = {
+    "random_forest": RandomForestClassifier(
+        n_estimators=100, random_state=42
+    ),
+    "logistic_regression": LogisticRegression(
+        max_iter=1000, random_state=42, class_weight="balanced"
+    ),
+    "gradient_boosting": GradientBoostingClassifier(
+        n_estimators=100, random_state=42
+    ),
+    "svm": SVC(
+        kernel="rbf",
+        probability=True,
+        random_state=42,
+        class_weight="balanced",
+    ),
+}
 
 
 def extract_features(messages: list[dict]) -> dict:
@@ -144,9 +169,9 @@ FEATURE_NAMES = [
 
 
 async def train_model(db: AsyncSession) -> dict:
-    """Train the coordinator detection model.
+    """Train multiple models, compare performance, and keep the best one.
 
-    Returns dict with accuracy, model_path, and samples_used,
+    Returns dict with best_model_name, accuracy, model_path, and samples_used,
     or an error dict if training cannot proceed.
     """
     all_messages = await training_repository.get_all_training_data(db)
@@ -188,37 +213,109 @@ async def train_model(db: AsyncSession) -> dict:
         }
 
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42, stratify=y if len(np.unique(y)) > 1 else None,
+        X, y, test_size=0.2, random_state=42,
+        stratify=y if len(np.unique(y)) > 1 else None,
     )
 
-    clf = RandomForestClassifier(n_estimators=100, random_state=42)
-    clf.fit(X_train, y_train)
-
-    y_pred = clf.predict(X_test)
-    accuracy = float(accuracy_score(y_test, y_pred))
-
     os.makedirs(MODEL_DIR, exist_ok=True)
-    joblib.dump(clf, MODEL_PATH)
+
+    best_score = -1.0
+    best_model = None
+    best_name = None
+    best_accuracy = 0.0
+    best_f1 = 0.0
+    all_results: list[dict] = []
 
     mlflow.set_experiment("secret_signal_coordinator_detection")
-    with mlflow.start_run():
-        mlflow.log_param("n_estimators", 100)
-        mlflow.log_param("random_state", 42)
+
+    for name, model in MODEL_REGISTRY.items():
+        try:
+            model.fit(X_train, y_train)
+            y_pred = model.predict(X_test)
+            accuracy = float(accuracy_score(y_test, y_pred))
+            f1 = float(f1_score(y_test, y_pred, zero_division=0))
+
+            cv_scores = cross_val_score(
+                model, X_train, y_train, cv=min(3, len(np.unique(y_train))),
+                scoring="accuracy",
+            )
+            cv_mean = float(cv_scores.mean())
+
+            score = (accuracy + f1 + cv_mean) / 3
+
+            all_results.append({
+                "model": name,
+                "accuracy": round(accuracy, 4),
+                "f1_score": round(f1, 4),
+                "cv_accuracy": round(cv_mean, 4),
+                "combined_score": round(score, 4),
+            })
+
+            with mlflow.start_run(run_name=name):
+                mlflow.log_param("model", name)
+                mlflow.log_param("samples", len(X))
+                mlflow.log_param("features", len(FEATURE_NAMES))
+                mlflow.log_metric("accuracy", accuracy)
+                mlflow.log_metric("f1_score", f1)
+                mlflow.log_metric("cv_accuracy", cv_mean)
+                mlflow.log_metric("combined_score", score)
+                mlflow.sklearn.log_model(model, name)
+
+            if score > best_score:
+                best_score = score
+                best_model = model
+                best_name = name
+                best_accuracy = accuracy
+                best_f1 = f1
+
+        except Exception as e:
+            logger.warning("Model %s failed: %s", name, e)
+            all_results.append({
+                "model": name,
+                "error": str(e),
+            })
+
+    if best_model is None:
+        return {"error": "All models failed during training"}
+
+    joblib.dump(best_model, MODEL_PATH)
+
+    best_meta = {
+        "best_model": best_name,
+        "accuracy": round(best_accuracy, 4),
+        "f1_score": round(best_f1, 4),
+        "samples": len(X),
+        "all_results": all_results,
+    }
+    with open(BEST_MODEL_META_PATH, "w") as f:
+        import json
+        json.dump(best_meta, f, indent=2)
+
+    best_run = next(
+        (r for r in all_results if r.get("model") == best_name), {}
+    )
+    with mlflow.start_run(run_name=f"best_{best_name}"):
+        mlflow.log_param("best_model", best_name)
         mlflow.log_param("samples", len(X))
         mlflow.log_param("features", len(FEATURE_NAMES))
-        mlflow.log_metric("accuracy", accuracy)
-        mlflow.sklearn.log_model(clf, "model")
+        mlflow.log_metric("accuracy", best_accuracy)
+        mlflow.log_metric("f1_score", best_f1)
+        mlflow.sklearn.log_model(best_model, "best_model")
 
     logger.info(
-        "Model trained with accuracy=%.4f on %d samples",
-        accuracy,
-        len(X),
+        "Best model: %s with accuracy=%.4f, f1=%.4f on %d samples",
+        best_name, best_accuracy, best_f1, len(X),
     )
 
     return {
-        "accuracy": accuracy,
+        "best_model": best_name,
+        "accuracy": best_accuracy,
         "model_path": MODEL_PATH,
         "samples_used": len(X),
+        "all_results": [
+            {k: v for k, v in r.items() if k != "model"}
+            for r in all_results
+        ],
     }
 
 

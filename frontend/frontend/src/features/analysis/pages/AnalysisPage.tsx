@@ -190,6 +190,7 @@ export function AnalysisPage() {
             players={analysis.players.map((p) => ({
               user_id: p.user_id,
               role: p.role,
+              username: p.username,
               score: p.suspicion_score,
             }))}
           />
@@ -204,7 +205,7 @@ export function AnalysisPage() {
               <PlayerCard
                 key={player.user_id}
                 player={player}
-                playerName={`Player ${player.user_id}`}
+                playerName={player.username}
               />
             ))}
         </div>
@@ -217,14 +218,17 @@ export function AnalysisPage() {
               <div key={round} className="p-3 border border-gray-300/50 rounded bg-gray-100">
                 <div className="text-[10px] font-mono text-gray-500 mb-2">ROUND {round}</div>
                 <div className="flex flex-wrap gap-2">
-                  {Object.entries(votes).map(([userId, count]) => (
-                    <div
-                      key={userId}
-                      className="px-3 py-1 border border-gray-400/30 rounded bg-gray-200 text-xs font-mono text-gray-700"
-                    >
-                      Player {userId}: {count} vote{count !== 1 ? 's' : ''}
-                    </div>
-                  ))}
+                  {Object.entries(votes).map(([userId, count]) => {
+                    const voter = analysis.players.find(p => p.user_id === Number(userId))
+                    return (
+                      <div
+                        key={userId}
+                        className="px-3 py-1 border border-gray-400/30 rounded bg-gray-200 text-xs font-mono text-gray-700"
+                      >
+                        {voter?.username ?? `Player ${userId}`}: {count} vote{count !== 1 ? 's' : ''}
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             ))}

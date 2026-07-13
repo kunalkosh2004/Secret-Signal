@@ -1,6 +1,7 @@
 export interface PlayerAnalysis {
   user_id: number
   role: string
+  username: string
   message_count: number
   questions_asked: number
   topic_initiations: number

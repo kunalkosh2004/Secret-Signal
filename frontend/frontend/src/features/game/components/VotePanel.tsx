@@ -20,21 +20,32 @@ export function VotePanel({ players, currentUserId, onVote, disabled, results, t
 
     return (
       <div className="space-y-4">
-        {/* Winner announcement */}
-        {winner ? (
-          <div className="border-2 border-amber-500/40 rounded p-4 bg-amber-900/10 animate-scale-in text-center">
-            <div className="text-xs font-mono tracking-wider text-amber-600 mb-2">VOTED OUT</div>
+        {/* Verdict announcement */}
+        {results.coordinator_identified ? (
+          <div className="border-2 border-cyan-500/40 rounded p-4 bg-cyan-900/10 animate-scale-in text-center">
+            <div className="text-xs font-mono tracking-wider text-cyan-600 mb-2">COORDINATOR IDENTIFIED</div>
             <div className="flex items-center justify-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-amber-200 flex items-center justify-center text-lg font-mono font-bold text-amber-800">
+              <div className="w-10 h-10 rounded-full bg-cyan-200 flex items-center justify-center text-lg font-mono font-bold text-cyan-800">
+                {winner?.username?.charAt(0).toUpperCase() ?? '?'}
+              </div>
+              <span className="text-lg font-mono font-bold text-cyan-900">{winner?.username ?? 'Unknown'}</span>
+            </div>
+            <div className="text-[10px] font-mono text-cyan-600 mt-1">INVESTIGATION TEAM WINS THIS ROUND</div>
+          </div>
+        ) : winner ? (
+          <div className="border-2 border-accent/40 rounded p-4 bg-accent/10 animate-scale-in text-center">
+            <div className="text-xs font-mono tracking-wider text-accent mb-2">WRONG ACCUSATION</div>
+            <div className="flex items-center justify-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center text-lg font-mono font-bold text-accent">
                 {winner.username.charAt(0).toUpperCase()}
               </div>
-              <span className="text-lg font-mono font-bold text-amber-900">{winner.username}</span>
+              <span className="text-lg font-mono font-bold text-gray-900">{winner.username}</span>
             </div>
-            <div className="text-[10px] font-mono text-amber-600 mt-1">{maxCount} vote{maxCount !== 1 ? 's' : ''}</div>
+            <div className="text-[10px] font-mono text-accent mt-1">COORDINATOR ESCAPES DETECTION</div>
           </div>
         ) : (
           <div className="border border-gray-400/30 rounded p-4 bg-gray-100/50 text-center">
-            <div className="text-xs font-mono text-gray-600">NO ONE WAS VOTED OUT</div>
+            <div className="text-xs font-mono text-gray-600">NO ONE WAS ACCUSED</div>
             {results.tallies.length === 0 && (
               <div className="text-[10px] font-mono text-gray-500 mt-1">No votes were cast</div>
             )}

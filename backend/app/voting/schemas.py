@@ -14,3 +14,5 @@ class VoteResults(BaseModel):
     round_number: int
     total_votes: int
     tallies: list[VoteTally]
+    coordinator_identified: bool = False
+    coordinator_user_id: int | None = None

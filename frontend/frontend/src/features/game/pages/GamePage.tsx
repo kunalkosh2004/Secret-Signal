@@ -120,7 +120,6 @@ export function GamePage() {
     if (lastPhaseChanged) {
       setPhase('')
       setMissionFeedback(null)
-      setVoteResults(null)
       setMyVote(null)
       setTimerEndsAt(null)
       const timer = setTimeout(() => {
@@ -220,6 +219,20 @@ export function GamePage() {
             </Link>
             <span className="text-gray-600">|</span>
             <div className="text-sm font-mono tracking-[0.2em] text-gray-900">{code}</div>
+            {role && gamePhase !== 'game_over' && gamePhase !== 'role_assignment' && (
+              <>
+                <span className="text-gray-600">|</span>
+                <span className={`text-[10px] font-mono tracking-wider px-2 py-0.5 border rounded ${
+                  role === 'coordinator'
+                    ? 'text-accent border-accent/40 bg-accent/10'
+                    : role === 'detective'
+                    ? 'text-cyan-500 border-cyan-400/40 bg-cyan-50'
+                    : 'text-gray-500 border-gray-400/40 bg-gray-100'
+                }`}>
+                  {role.toUpperCase()}
+                </span>
+              </>
+            )}
           </div>
           <div className="flex items-center gap-2 text-xs font-mono text-gray-600">
             <span
@@ -402,6 +415,18 @@ export function GamePage() {
                   />
                 )}
               </div>
+
+              {/* AI Analysis button */}
+              {gameId > 0 && (
+                <div className="mt-4">
+                  <Link
+                    to={`/game/${gameId}/analysis`}
+                    className="inline-block px-6 py-2 border border-accent/50 rounded text-sm font-mono text-accent bg-accent/10 hover:bg-accent/20 transition-all"
+                  >
+                    VIEW AI ANALYSIS
+                  </Link>
+                </div>
+              )}
             </div>
           )}
 
@@ -450,18 +475,50 @@ export function GamePage() {
                   BACK TO LOBBY
                 </Link>
                 {gameId > 0 && (
-                  <Link
+                  <AutoNavLink
                     to={`/game/${gameId}/analysis`}
-                    className="px-6 py-2 border border-accent/50 rounded text-sm font-mono text-accent bg-accent/10 hover:bg-accent/20 transition-all"
-                  >
-                    VIEW AI ANALYSIS
-                  </Link>
+                    label="AI ANALYSIS"
+                    delaySeconds={10}
+                  />
                 )}
               </div>
             </div>
           )}
         </div>
       </div>
+    </div>
+  )
+}
+
+function AutoNavLink({ to, label, delaySeconds }: { to: string; label: string; delaySeconds: number }) {
+  const navigate = useNavigate()
+  const [countdown, setCountdown] = useState(delaySeconds)
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer)
+          navigate(to)
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [to, navigate])
+
+  return (
+    <div className="flex flex-col items-center gap-2">
+      <Link
+        to={to}
+        className="px-6 py-2 border border-accent/50 rounded text-sm font-mono text-accent bg-accent/10 hover:bg-accent/20 transition-all"
+      >
+        VIEW {label}
+      </Link>
+      <span className="text-[10px] font-mono text-gray-500 animate-pulse">
+        Auto-navigating in {countdown}s...
+      </span>
     </div>
   )
 }

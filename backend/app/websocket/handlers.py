@@ -385,6 +385,9 @@ async def handle_message(
                             "user_id": gp.user_id,
                             "role": gp.role,
                             "score": gp.score,
+                            "username": (
+                                await get_by_id(db, gp.user_id)
+                            ).username,
                         }
                         for gp in game_players
                     ],
@@ -540,8 +543,8 @@ async def handle_message(
             
             await db.commit()
             
-            # Get vote results
-            results = await vote_repository.tally_votes(
+            # Get vote results with coordinator identification check
+            vote_results = await voting_service.tally_votes(
                 db=db,
                 game_id=game.id,
                 round_number=game.round_number,
@@ -551,14 +554,7 @@ async def handle_message(
                 room_code=room_code,
                 message={
                     "type": "VOTE_RESULTS",
-                    "results": {
-                        "round_number": game.round_number,
-                        "total_votes": len(votes),
-                        "tallies": [
-                            {"target_user_id": t[0], "count": t[1]}
-                            for t in results
-                        ],
-                    },
+                    "results": vote_results.model_dump(),
                 },
             )
             
@@ -573,6 +569,53 @@ async def handle_message(
                     },
                 },
             )
+            
+            # Check win condition based on vote result
+            win_result = await check_win_condition(
+                db=db,
+                game_id=game.id,
+            )
+            if win_result.game_over:
+                scores = await calculate_final_scores(
+                    db=db,
+                    game_id=game.id,
+                )
+
+                game_players = (
+                    await game_repository.get_game_players(
+                        db, game_id=game.id
+                    )
+                )
+                game.status = "completed"
+                game.phase = GamePhase.GAME_OVER.value
+                room.status = "completed"
+                await db.commit()
+                await manager.broadcast_to_room(
+                    room_code=room_code,
+                    message={
+                        "type": "GAME_OVER",
+                        "game": {
+                            "id": game.id,
+                            "status": game.status,
+                            "round_number": game.round_number,
+                            "phase": game.phase,
+                        },
+                        "winner": win_result.winner,
+                        "reason": win_result.reason,
+                        "scores": [
+                            {
+                                "user_id": gp.user_id,
+                                "role": gp.role,
+                                "score": gp.score,
+                                "username": (
+                                    await get_by_id(db, gp.user_id)
+                                ).username,
+                            }
+                            for gp in game_players
+                        ],
+                    },
+                )
+                return
             
             # Start timer for result phase
             from app.game_engine.timer import start_phase_timer

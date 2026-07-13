@@ -14,7 +14,7 @@ from app.game_engine.state_machine import (
     validate_transition,
 )
 
-MAX_ROUNDS = 5
+MAX_ROUNDS = 1
 
 def assign_roles(
     user_ids: list[int],
@@ -251,12 +251,37 @@ async def check_win_condition(
         )
     )
 
-    if completed_missions >= 5:
+    if completed_missions >= MAX_ROUNDS:
         return WinConditionResult(
             game_over=True,
             winner="coordinator",
             reason="mission_target_reached",
         )
+
+    if game.phase == GamePhase.RESULT.value:
+        votes = await vote_repository.get_votes_for_round(
+            db=db,
+            game_id=game_id,
+            round_number=game.round_number,
+        )
+        if votes:
+            vote_counts: dict[int, int] = {}
+            for v in votes:
+                vote_counts[v.target_user_id] = (
+                    vote_counts.get(v.target_user_id, 0) + 1
+                )
+            top_target = max(vote_counts, key=vote_counts.get)
+            coordinator = await game_repository.get_player_by_role(
+                db=db,
+                game_id=game_id,
+                role="coordinator",
+            )
+            if coordinator and top_target == coordinator.user_id:
+                return WinConditionResult(
+                    game_over=True,
+                    winner="investigation_team",
+                    reason="coordinator_correctly_identified",
+                )
 
     if (
         game.round_number >= MAX_ROUNDS

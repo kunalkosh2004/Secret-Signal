@@ -5,12 +5,14 @@ from app.events import repository as event_repository
 from app.game_engine import repository as game_repository
 from app.voting import repository as vote_repository
 from app.missions import repository as mission_repository
+from app.users import repository as user_repository
 
 
 @dataclass
 class PlayerBehaviorProfile:
     user_id: int
     role: str
+    username: str = ""
     message_count: int = 0
     questions_asked: int = 0
     topic_initiations: int = 0
@@ -186,7 +188,7 @@ async def analyze_game(
 
     messages_by_player: dict[int, list[dict]] = {}
     for event in all_events:
-        if event.event_type == "message":
+        if event.event_type == "message_sent":
             uid = event.user_id
             if uid not in messages_by_player:
                 messages_by_player[uid] = []
@@ -263,9 +265,13 @@ async def analyze_game(
                 }
             )
 
+        user = await user_repository.get_by_id(db, uid)
+        username = user.username if user else str(uid)
+
         profile = PlayerBehaviorProfile(
             user_id=uid,
             role=gp.role,
+            username=username,
             message_count=msg_count,
             questions_asked=questions,
             topic_initiations=topic_shifts,
@@ -356,7 +362,7 @@ async def analyze_game(
     )
     if coord:
         summary_lines.append(
-            f"The coordinator (Player {coord.user_id}) sent "
+            f"The coordinator ({coord.username}) sent "
             f"{coord.message_count} messages with an average "
             f"length of {coord.avg_message_length:.0f} characters."
         )
@@ -367,7 +373,7 @@ async def analyze_game(
     if suspicious:
         top = suspicious[0]
         summary_lines.append(
-            f"Player {top.user_id} ({top.role}) had the "
+            f"{top.username} ({top.role}) had the "
             f"highest suspicion score of {top.suspicion_score:.1f}."
         )
 
