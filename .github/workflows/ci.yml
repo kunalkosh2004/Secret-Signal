@@ -132,10 +132,27 @@ jobs:
           cd backend
           alembic upgrade head
 
+      - name: Start app server
+        run: |
+          cd backend
+          nohup uvicorn app.main:app --host 0.0.0.0 --port 8000 > /tmp/app.log 2>&1 &
+          echo "pid=$!"
+          for i in $(seq 1 30); do
+            if curl -s http://localhost:8000/health > /dev/null 2>&1; then
+              echo "Server ready"
+              break
+            fi
+            sleep 1
+          done
+
       - name: Run tests
         run: |
           cd backend
           pytest tests/test_golden_flow.py -v --tb=short
+
+      - name: Cleanup
+        if: always()
+        run: kill $(lsof -t -i :8000) 2>/dev/null || true
 
   # ===========================================================================
   # FRONTEND: Build
