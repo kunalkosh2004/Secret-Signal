@@ -207,9 +207,9 @@ export function RoomPage() {
               <span className="text-gray-500">|</span>
               <span>
                 <span className="text-gray-500">ROUNDS:</span>{' '}
-                <span className="text-gray-800">{(room.settings as Record<string, unknown>).max_rounds ?? 1}</span>
+                <span className="text-gray-800">{(room.settings as Record<string, string | number>).max_rounds ?? 1}</span>
               </span>
-              {(room.settings as Record<string, unknown>).phase_durations && (
+              {(room.settings as Record<string, Record<string, number>>).phase_durations && (
                 <>
                   <span className="text-gray-500">|</span>
                   <span>
