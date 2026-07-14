@@ -65,7 +65,11 @@ async def test_golden_flow():
         for u in USERS:
             res = await client.post(
                 f"{BASE}/auth/signup",
-                json={"username": u["username"], "email": u["email"], "password": PASSWORD},
+                json={
+                    "username": u["username"],
+                    "email": u["email"],
+                    "password": PASSWORD,
+                },
             )
             if res.status_code in (200, 201):
                 d = res.json()
@@ -80,7 +84,9 @@ async def test_golden_flow():
                 tokens[u["email"]] = d["access_token"]
                 user_ids[u["email"]] = d["user"]["id"]
             else:
-                pytest.fail(f"signup {u['username']} failed: {res.status_code} {res.text}")
+                pytest.fail(
+                    f"signup {u['username']} failed: {res.status_code} {res.text}"
+                )
 
         assert len(tokens) == 4, f"got {len(tokens)} users"
         print("[1] SIGNUP — 4 users authenticated")
@@ -139,7 +145,9 @@ async def test_golden_flow():
 
             for u in USERS:
                 uid = user_ids[u["email"]]
-                await room_repo.set_player_ready(db, room_id=room.id, user_id=uid, is_ready=True)
+                await room_repo.set_player_ready(
+                    db, room_id=room.id, user_id=uid, is_ready=True
+                )
 
             players = await room_repo.get_players_with_ready_state(db, room_id=room.id)
             all_ready = all(ready for _, ready in players)
@@ -288,7 +296,9 @@ async def test_golden_flow():
             others = [x for x in all_uids if x != uid]
             target = random.choice(others)
             ws = ws_conns[u["email"]]
-            await ws_send(ws, {"type": "CAST_VOTE", "payload": {"target_user_id": target}})
+            await ws_send(
+                ws, {"type": "CAST_VOTE", "payload": {"target_user_id": target}}
+            )
             votes_cast += 1
             await asyncio.sleep(0.8)
 
@@ -367,7 +377,9 @@ async def test_golden_flow():
         assert "Player 6" not in analysis.summary
         assert "Player 7" not in analysis.summary
         assert "Player 8" not in analysis.summary
-    print(f"[16] ANALYTICS — {total_analyzed} messages analyzed, {len(analysis.players)} players")
+    print(
+        f"[16] ANALYTICS — {total_analyzed} messages analyzed, {len(analysis.players)} players"
+    )
 
     # =============================================================
     # 17. VERIFY GAME STATE
