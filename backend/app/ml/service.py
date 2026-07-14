@@ -381,9 +381,6 @@ async def train_model(db: AsyncSession) -> dict:
         import json
         json.dump(best_meta, f, indent=2)
 
-    best_run = next(
-        (r for r in all_results if r.get("model") == best_name), {}
-    )
     with mlflow.start_run(run_name=f"best_{best_name}"):
         mlflow.log_param("best_model", best_name)
         mlflow.log_param("samples", len(X))

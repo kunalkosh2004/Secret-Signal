@@ -13,10 +13,7 @@ from app.auth.repository import (
     create_identity,
 )
 from app.users.repository import (
-    create,
     get_by_id,
-    get_by_email,
-    get_by_username,
 )
 
 

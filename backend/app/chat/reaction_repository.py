@@ -1,4 +1,4 @@
-from sqlalchemy import select, func as sql_func
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.chat.reaction_models import MessageReaction

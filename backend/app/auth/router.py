@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import text
 import secrets
 from fastapi.responses import RedirectResponse
 from fastapi import Query

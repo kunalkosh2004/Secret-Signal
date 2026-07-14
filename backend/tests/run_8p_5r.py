@@ -1,5 +1,8 @@
 """8-user 5-round game with randomized messages and Signal AI scans."""
-import asyncio, random, sys, os
+import asyncio
+import random
+import sys
+import os
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -94,7 +97,6 @@ DISCUSSION_POOL = [
 
 
 async def http_get(c, path, headers):
-    import httpx
     r = await c.get(f"{BASE}{path}", headers=headers)
     return r
 
@@ -266,7 +268,7 @@ async def main():
                 detective_uid = detective.user_id if detective else USERS[1][0]
 
                 report = await generate_signal_report(db, game_id, detective_uid)
-                print(f"\n  SIGNAL AI REPORT:")
+                print("\n  SIGNAL AI REPORT:")
                 print(f"    Scan ID: {report.scan_id}")
                 print(f"    Model: {report.model_version}")
                 if report.most_suspicious:
@@ -303,7 +305,7 @@ async def main():
                         voter_user_id=uid, target_user_id=target,
                     )
                 await db.commit()
-            print(f"  8 votes cast")
+            print("  8 votes cast")
 
             # === RESULT PHASE ===
             r = await c.post(f"{BASE}/games/{game_id}/advance-phase",
@@ -336,20 +338,20 @@ async def main():
             from app.users.service import get_user_by_id
 
             print(f"\n{'='*50}")
-            print(f"  GAME COMPLETE")
+            print("  GAME COMPLETE")
             print(f"{'='*50}")
             print(f"  Game ID:     {game.id}")
             print(f"  Room Code:   {room_code}")
             print(f"  Status:      {game.status}")
             print(f"  Phase:       {game.phase}")
             print(f"  Rounds:      {game.round_number}/{game.max_rounds}")
-            print(f"\n  Players:")
+            print("\n  Players:")
             for gp in players:
                 user = await get_user_by_id(db, gp.user_id)
                 tag = " ***COORDINATOR***" if gp.role == "coordinator" else ""
                 print(f"    {user.username:>10} (id={gp.user_id}): "
                       f"role={gp.role:15} score={gp.score}{tag}")
-            print(f"\n  Endpoints:")
+            print("\n  Endpoints:")
             print(f"    Analysis: http://localhost:8000/api/v1/analytics/{game_id}")
             print(f"    Replay:   http://localhost:8000/api/v1/replay/{game_id}")
             print(f"    Frontend: http://localhost:5173/game/{room_code}/analysis")

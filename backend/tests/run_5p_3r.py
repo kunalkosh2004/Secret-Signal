@@ -1,5 +1,9 @@
 """5-user 3-round game — HTTP + DB only, zero websocket connections."""
-import asyncio, json, random, httpx, sys, os
+import asyncio
+import random
+import httpx
+import sys
+import os
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -130,13 +134,14 @@ async def main():
                             if has_reply:
                                 others_gp = [u for u, _ in USERS if u != uid]
                                 rp = await game_repo.get_game_player(db, game_id=game_id, user_id=random.choice(others_gp))
-                                if rp: reply_role = rp.role
+                                if rp:
+                                    reply_role = rp.role
                             await training_repo.create_training_message(
                                 db, game_id=game_id, user_id=uid, role=gp.role, phase=game.phase,
                                 content=content, round_number=game.round_number,
                                 has_reply=has_reply, reply_to_role=reply_role)
                 await db.commit()
-            print(f"  15 chat messages stored")
+            print("  15 chat messages stored")
 
             # Advance to discussion
             r = await c.post(f"{BASE}/games/{game_id}/advance-phase",
@@ -158,7 +163,7 @@ async def main():
                             db, game_id=game_id, user_id=uid, role=gp.role, phase=game.phase,
                             content=content, round_number=game.round_number)
                 await db.commit()
-            print(f"  5 discussion messages stored")
+            print("  5 discussion messages stored")
 
             # Advance to voting
             r = await c.post(f"{BASE}/games/{game_id}/advance-phase",
@@ -211,18 +216,18 @@ async def main():
             players = await game_repo.get_game_players(db, game_id=game_id)
             from app.users.service import get_user_by_id
             print(f"\n{'='*50}")
-            print(f"GAME COMPLETE")
+            print("GAME COMPLETE")
             print(f"{'='*50}")
             print(f"Game ID:      {game.id}")
             print(f"Room Code:    {room_code}")
             print(f"Status:       {game.status}")
             print(f"Phase:        {game.phase}")
             print(f"Rounds:       {game.round_number}/{game.max_rounds}")
-            print(f"\nPlayers:")
+            print("\nPlayers:")
             for gp in players:
                 user = await get_user_by_id(db, gp.user_id)
                 print(f"  {user.username} (id={gp.user_id}): role={gp.role}, score={gp.score}")
-            print(f"\nEndpoints:")
+            print("\nEndpoints:")
             print(f"  Analytics: GET http://localhost:8000/api/v1/analytics/game/{game_id}")
             print(f"  ML Predict: GET http://localhost:8000/api/v1/ml/predict/{game_id}")
 

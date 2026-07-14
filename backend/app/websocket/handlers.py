@@ -3,6 +3,7 @@ from typing import Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.logging import get_logger
 from app.auth.security import decode_access_token
 from app.core.redis import is_token_revoked
 from app.core.redis_rate_limit import is_rate_limited
@@ -25,6 +26,8 @@ from app.training import repository as training_repository
 from app.signal_ai.service import generate_signal_report
 from app.signal_ai.models import SignalAIConfig
 from app.core.redis import redis_client
+
+logger = get_logger("app.websocket.handlers")
 
 # Allowed emoji reactions
 ALLOWED_EMOJIS = {"👍", "👎", "❤️", "😂", "😮", "😢", "🔥", "👀", "🎯", "✅"}
@@ -326,7 +329,7 @@ async def handle_message(
                 )
 
                 if win_result.game_over:
-                    scores = await calculate_final_scores(
+                    await calculate_final_scores(
                         db=db,
                         game_id=game.id,
                     )
@@ -655,7 +658,7 @@ async def handle_message(
                 game_id=game.id,
             )
             if win_result.game_over:
-                scores = await calculate_final_scores(
+                await calculate_final_scores(
                     db=db,
                     game_id=game.id,
                 )

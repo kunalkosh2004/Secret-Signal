@@ -11,8 +11,6 @@ from app.core.redis_timer import (
     PHASE_DURATIONS,
     start_phase_timer,
     cancel_timer,
-    get_remaining_time as redis_get_remaining_time,
-    get_active_timer,
     get_phase_duration,
 )
 

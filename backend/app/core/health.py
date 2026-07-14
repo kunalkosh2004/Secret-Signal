@@ -67,7 +67,6 @@ async def readiness(db: AsyncSession = Depends(get_db)):
         checks["redis"] = {"status": "unhealthy", "error": str(e)}
         all_healthy = False
 
-    status_code = 200 if all_healthy else 503
     return {
         "status": "ready" if all_healthy else "not_ready",
         "checks": checks,

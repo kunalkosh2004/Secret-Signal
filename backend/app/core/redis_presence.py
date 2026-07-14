@@ -10,7 +10,6 @@ Key patterns:
   ws:room:{room_code}:count → String(count)               (fast count)
 """
 
-import json
 from typing import Optional
 
 from app.core.redis import redis_client

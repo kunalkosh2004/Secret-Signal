@@ -13,6 +13,7 @@ from app.game_engine.router import router as games_router
 from app.chat.router import router as chat_router
 from app.voting.router import router as votes_router
 from app.analytics.router import router as analytics_router
+from app.replay.router import router as replay_router
 from app.rooms import repository as room_repository
 from app.core.exceptions import AppException
 from app.core.config import settings
@@ -224,6 +225,4 @@ app.include_router(games_router)
 app.include_router(chat_router)
 app.include_router(votes_router)
 app.include_router(analytics_router)
-
-from app.replay.router import router as replay_router
 app.include_router(replay_router)

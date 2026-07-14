@@ -10,14 +10,15 @@ from app.core.config import settings
 from app.db.base import Base
 
 # Import models so they are registered in Base.metadata
-from app.users.models import User
-from app.auth.models import AuthIdentity
-from app.rooms.models import Room, RoomPlayer
-from app.game_engine.models import Game, GamePlayer
-from app.missions.models import Mission
-from app.chat.models import Message
-from app.voting.models import Vote
-from app.events.models import GameEvent
+# noqa: F401 — these imports register SQLAlchemy tables for autogenerate
+from app.users.models import User  # noqa: F401
+from app.auth.models import AuthIdentity  # noqa: F401
+from app.rooms.models import Room, RoomPlayer  # noqa: F401
+from app.game_engine.models import Game, GamePlayer  # noqa: F401
+from app.missions.models import Mission  # noqa: F401
+from app.chat.models import Message  # noqa: F401
+from app.voting.models import Vote  # noqa: F401
+from app.events.models import GameEvent  # noqa: F401
 
 config = context.config
 

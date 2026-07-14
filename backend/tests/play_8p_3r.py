@@ -1,5 +1,9 @@
 """Fast 8-player 3-round game — HTTP + DB only, no websockets."""
-import asyncio, json, random, httpx, sys, os
+import asyncio
+import random
+import httpx
+import sys
+import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 BASE = "http://localhost:8000/api/v1"
@@ -108,12 +112,13 @@ async def main():
                                 others = [u for u, _ in USERS if u != uid]
                                 reply_uid = random.choice(others)
                                 rp = await game_repo.get_game_player(db, game_id=game_id, user_id=reply_uid)
-                                if rp: reply_role = rp.role
+                                if rp:
+                                    reply_role = rp.role
                             await training_repo.create_training_message(db, game_id=game_id, user_id=uid,
                                 role=gp.role, phase=game.phase, content=msg.content,
                                 round_number=game.round_number, has_reply=has_reply, reply_to_role=reply_role)
                 await db.commit()
-            print(f"  24 chat messages stored")
+            print("  24 chat messages stored")
 
             # Discussion
             r = await c.post(f"{BASE}/games/{game_id}/advance-phase",
@@ -133,7 +138,7 @@ async def main():
                             role=gp.role, phase=game.phase, content=msg.content,
                             round_number=game.round_number)
                 await db.commit()
-            print(f"  8 discussion messages stored")
+            print("  8 discussion messages stored")
 
             # Voting
             r = await c.post(f"{BASE}/games/{game_id}/advance-phase",
@@ -153,7 +158,7 @@ async def main():
                                                    event_type="vote_cast", user_id=uid,
                                                    payload={"target_user_id": target})
                 await db.commit()
-            print(f"  8 votes cast")
+            print("  8 votes cast")
 
             # Advance to result
             r = await c.post(f"{BASE}/games/{game_id}/advance-phase",
@@ -177,7 +182,7 @@ async def main():
             players = await game_repo.get_game_players(db, game_id=game_id)
 
             print(f"\n{'='*50}")
-            print(f"GAME COMPLETE")
+            print("GAME COMPLETE")
             print(f"{'='*50}")
             print(f"Game ID:      {game.id}")
             print(f"Room Code:    {room_code}")
@@ -185,10 +190,10 @@ async def main():
             print(f"Phase:        {game.phase}")
             print(f"Rounds:       {game.round_number}")
             print(f"Max Rounds:   {game.max_rounds}")
-            print(f"\nPlayers:")
+            print("\nPlayers:")
             for gp in players:
                 print(f"  User {gp.user_id}: role={gp.role}, score={gp.score}")
-            print(f"\nAI Analysis Endpoints:")
+            print("\nAI Analysis Endpoints:")
             print(f"  GET http://localhost:8000/api/v1/analytics/game/{game_id}")
             print(f"  GET http://localhost:8000/api/v1/ml/predict/{game_id}")
 

@@ -309,7 +309,6 @@ async def analyze_game(
         player_sent = [
             m for m, _ in player_room_msgs if m.user_id == uid
         ]
-        player_msg_ids = [m.id for m in player_sent]
 
         reply_count = 0
         reply_to_coordinator = 0

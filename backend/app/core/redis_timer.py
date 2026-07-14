@@ -135,7 +135,6 @@ def start_phase_timer(
             await asyncio.sleep(duration)
 
             # Timer expired — advance phase
-            from app.db.session import SessionLocal
             from app.game_engine import repository as game_repository
             from app.game_engine.state_machine import GamePhase, VALID_TRANSITIONS
             from app.events import repository as event_repository

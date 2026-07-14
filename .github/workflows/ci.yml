@@ -220,7 +220,7 @@ jobs:
           cd backend
           pip install pip-audit
           pip install -e ".[dev]"
-          pip-audit --strict --progress-spinner on-failure
+          pip-audit --strict
 
       - name: Check npm dependencies
         working-directory: frontend/frontend

@@ -217,7 +217,7 @@ async def main():
                                     json={"next_phase": "interaction"},
                                     headers={"Authorization": f"Bearer {host_token}"})
             if res.status_code == 200:
-                print(f"  ✓ Advanced to interaction")
+                print("  ✓ Advanced to interaction")
             await asyncio.sleep(1)
             for ws in ws_conns.values():
                 await drain(ws, timeout=2)
@@ -320,7 +320,7 @@ async def main():
         # VERIFY GAME STATE
         # =========================================================
         print(f"\n{'='*60}")
-        print(f"  GAME COMPLETE — VERIFYING")
+        print("  GAME COMPLETE — VERIFYING")
         print(f"{'='*60}")
 
         from app.db.session import SessionLocal as SL
@@ -339,8 +339,8 @@ async def main():
             game_players = await game_repo.get_game_players(db, game_id=game_id)
             print(f"\n  Players ({len(game_players)}):")
             for gp in game_players:
-                user_res = await client.get(f"{BASE}/auth/me",
-                                            headers={"Authorization": f"Bearer {host_token}"})
+                await client.get(f"{BASE}/auth/me",
+                                 headers={"Authorization": f"Bearer {host_token}"})
                 # Just print role and score
                 print(f"    User {gp.user_id}: role={gp.role}, score={gp.score}")
 
@@ -351,7 +351,7 @@ async def main():
             # Analytics
             try:
                 analysis = await analytics_svc.analyze_game(db, game_id=game_id)
-                print(f"\n  Analytics Summary:")
+                print("\n  Analytics Summary:")
                 print(f"    {analysis.summary}")
                 print(f"    Winner: {analysis.winner}")
                 print(f"    Players analyzed: {len(analysis.players)}")
@@ -375,18 +375,18 @@ async def main():
         # FINAL OUTPUT
         # =========================================================
         print(f"\n{'='*60}")
-        print(f"  GAME COMPLETE")
+        print("  GAME COMPLETE")
         print(f"{'='*60}")
         print(f"  Game ID:            {game_id}")
         print(f"  Room Code:          {room_code}")
-        print(f"  Players:            8")
-        print(f"  Rounds Played:      3")
-        print(f"")
-        print(f"  AI Analysis Endpoint:")
+        print("  Players:            8")
+        print("  Rounds Played:      3")
+        print("")
+        print("  AI Analysis Endpoint:")
         print(f"    GET  /api/v1/analytics/game/{game_id}")
         print(f"    GET  /api/v1/ml/predict/{game_id}")
-        print(f"")
-        print(f"  Full URL:")
+        print("")
+        print("  Full URL:")
         print(f"    http://localhost:8000/api/v1/analytics/game/{game_id}")
         print(f"    http://localhost:8000/api/v1/ml/predict/{game_id}")
         print(f"{'='*60}")

@@ -241,7 +241,7 @@ async def advance_phase(
         )
 
         if win_result.game_over:
-            scores = await calculate_final_scores(
+            await calculate_final_scores(
                 db=db,
                 game_id=game.id,
             )

@@ -36,11 +36,7 @@ from app.signal_ai.models import (
 )
 from app.game_engine import repository as game_repository
 from app.events import repository as event_repository
-from app.voting import repository as vote_repository
-from app.missions import repository as mission_repository
 from app.users import repository as user_repository
-from app.chat import repository as chat_repository
-from app.chat import reaction_repository
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +74,7 @@ def _extract_player_features(
         "okay so", "let me", "i think", "what if", "hang on",
         "hold on", "sorry", "btw", "by the way", "anyway",
     ]
-    QUESTION_MARKERS = [
+    _QUESTION_MARKERS = [
         "who", "what", "where", "when", "why", "how",
         "do you", "did you", "can you", "could you",
         "is there", "are you", "don't you",

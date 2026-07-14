@@ -187,7 +187,6 @@ async def main():
         ]
 
         for p in PLAYERS + [HOST]:
-            token = HOST_TOKEN if p == HOST else player_tokens[p["email"]]
             ws = ws_conns["host"] if p == HOST else ws_conns[p["email"]]
             name = "Host" if p == HOST else p["username"]
             for i in range(5):
@@ -222,7 +221,6 @@ async def main():
             "Let's discuss before voting.",
         ]
         for p in PLAYERS + [HOST]:
-            token = HOST_TOKEN if p == HOST else player_tokens[p["email"]]
             ws = ws_conns["host"] if p == HOST else ws_conns[p["email"]]
             name = "Host" if p == HOST else p["username"]
             for i in range(3):
@@ -279,7 +277,7 @@ async def main():
             await ws.close()
 
         print(f"\n{'='*50}")
-        print(f"  GAME COMPLETE!")
+        print("  GAME COMPLETE!")
         print(f"  GAME ID: {game_id}")
         print(f"  Room Code: {room_code}")
         print(f"  Host: kunal@test1.com (asd123kunal, id={HOST_ID})")

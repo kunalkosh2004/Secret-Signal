@@ -1,7 +1,6 @@
 from sqlalchemy import String, Boolean, DateTime, func
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 from app.db.base import Base
-import uuid
 from datetime import datetime
 
 class User(Base):

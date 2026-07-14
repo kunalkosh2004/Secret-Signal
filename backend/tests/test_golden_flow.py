@@ -211,7 +211,7 @@ async def main():
             ws = ws_conns[u["email"]]
             for i in range(3):
                 msg = random.choice(chat_phrases)
-                resp = await ws_send(ws, {"type": "SEND_MESSAGE", "content": msg})
+                await ws_send(ws, {"type": "SEND_MESSAGE", "content": msg})
                 await asyncio.sleep(0.3)
             total_messages += 3
             await drain(ws, timeout=1)
@@ -279,7 +279,7 @@ async def main():
             others = [x for x in all_uids if x != uid]
             target = random.choice(others)
             ws = ws_conns[u["email"]]
-            resp = await ws_send(ws, {"type": "CAST_VOTE", "payload": {"target_user_id": target}})
+            await ws_send(ws, {"type": "CAST_VOTE", "payload": {"target_user_id": target}})
             votes_cast += 1
             check(f"{u['username']} voted for user {target}", True)
             await asyncio.sleep(0.8)

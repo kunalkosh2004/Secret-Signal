@@ -23,8 +23,6 @@ Future integration points:
 from __future__ import annotations
 
 import logging
-from collections import defaultdict
-from datetime import datetime, timezone
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
