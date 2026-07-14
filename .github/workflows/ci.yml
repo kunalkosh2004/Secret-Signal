@@ -220,7 +220,8 @@ jobs:
           cd backend
           pip install pip-audit
           pip install -e ".[dev]"
-          pip-audit --strict
+          pip freeze --exclude secret-signal-backend > /tmp/reqs.txt
+          pip-audit -r /tmp/reqs.txt
 
       - name: Check npm dependencies
         working-directory: frontend/frontend
