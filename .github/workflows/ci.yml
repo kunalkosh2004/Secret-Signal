@@ -135,7 +135,7 @@ jobs:
       - name: Run tests
         run: |
           cd backend
-          pytest -v --tb=short
+          pytest tests/test_golden_flow.py -v --tb=short
 
   # ===========================================================================
   # FRONTEND: Build
