@@ -123,7 +123,9 @@ class TestGoldenFlow:
                 json={"code": self.room_code},
                 headers={"Authorization": f"Bearer {self.tokens[u['email']]}"},
             )
-            assert res.status_code == 200, f"{u['username']}: {res.status_code} {res.text}"
+            assert res.status_code == 200, (
+                f"{u['username']}: {res.status_code} {res.text}"
+            )
 
         # duplicate join should fail
         res = await client.post(
@@ -144,11 +146,15 @@ class TestGoldenFlow:
 
             for u in USERS:
                 uid = self.user_ids[u["email"]]
-                await room_repo.set_player_ready(db, room_id=room.id, user_id=uid, is_ready=True)
+                await room_repo.set_player_ready(
+                    db, room_id=room.id, user_id=uid, is_ready=True
+                )
 
             players = await room_repo.get_players_with_ready_state(db, room_id=room.id)
             all_ready = all(ready for _, ready in players)
-            assert all_ready and len(players) == 4, f"players={len(players)} ready={all_ready}"
+            assert all_ready and len(players) == 4, (
+                f"players={len(players)} ready={all_ready}"
+            )
 
     @pytest.mark.asyncio
     async def test_06_start_game(self, client):
@@ -299,7 +305,9 @@ class TestGoldenFlow:
             others = [x for x in all_uids if x != uid]
             target = random.choice(others)
             ws = ws_conns[u["email"]]
-            await ws_send(ws, {"type": "CAST_VOTE", "payload": {"target_user_id": target}})
+            await ws_send(
+                ws, {"type": "CAST_VOTE", "payload": {"target_user_id": target}}
+            )
             votes_cast += 1
             await asyncio.sleep(0.8)
 
@@ -349,7 +357,9 @@ class TestGoldenFlow:
         from app.training import repository as training_repo
 
         async with SL() as db:
-            training_data = await training_repo.get_game_training_data(db, game_id=self.game_id)
+            training_data = await training_repo.get_game_training_data(
+                db, game_id=self.game_id
+            )
             assert len(training_data) > 0, f"count={len(training_data)}"
             roles = set(t.role for t in training_data)
             assert len(roles) >= 2, f"roles={roles}"
