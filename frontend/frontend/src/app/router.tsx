@@ -7,6 +7,8 @@ import { LobbyPage } from '../pages/LobbyPage'
 import { RoomPage } from '../features/room/pages/RoomPage'
 import { GamePage } from '../features/game/pages/GamePage'
 import { AnalysisPage } from '../features/analysis/pages/AnalysisPage'
+import { ReplayPage } from '../features/replay/pages/ReplayPage'
+import { AdminRouter } from '../features/admin/AdminRouter'
 import { NotFound } from '../pages/NotFound'
 
 export const router = () => {
@@ -21,6 +23,8 @@ export const router = () => {
         <Route path="/room/:code" element={<RoomPage />} />
         <Route path="/game/:code" element={<GamePage />} />
         <Route path="/game/:gameId/analysis" element={<AnalysisPage />} />
+        <Route path="/game/:gameId/replay" element={<ReplayPage />} />
+        <Route path="/admin/*" element={<AdminRouter />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>

@@ -55,6 +55,7 @@ import type {
   VoteCastEvent,
   TimerUpdatedEvent,
   MLTrainedEvent,
+  SignalAIResultEvent,
 } from './game.types'
 import type {
   ChatHistoryEvent,
@@ -80,6 +81,7 @@ export type WsServerEvent =
   | ChatHistoryEvent
   | ReactionAddedEvent
   | ReactionRemovedEvent
+  | SignalAIResultEvent
 
 export type WsClientEvent =
   | { type: 'PLAYER_READY'; payload: { ready: boolean } }
@@ -88,3 +90,4 @@ export type WsClientEvent =
   | { type: 'CAST_VOTE'; payload: { target_user_id: number } }
   | { type: 'ADD_REACTION'; payload: { message_id: number; emoji: string } }
   | { type: 'REMOVE_REACTION'; payload: { message_id: number; emoji: string } }
+  | { type: 'SIGNAL_AI_SCAN' }

@@ -1,0 +1,46 @@
+# =============================================================================
+# Secret Signal — Prometheus Configuration
+# =============================================================================
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  scrape_timeout: 10s
+
+# Alert rules
+rule_files:
+  - alerts.yml
+
+# Scrape targets
+scrape_configs:
+  # ---------------------------------------------------------------
+  # Prometheus self-monitoring
+  # ---------------------------------------------------------------
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # ---------------------------------------------------------------
+  # Backend API metrics
+  # ---------------------------------------------------------------
+  # Once prometheus-fastapi-instrumentator is added to the backend,
+  # it will expose metrics at /metrics
+  - job_name: secret-signal-backend
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["backend:8000"]
+    scrape_interval: 10s
+
+  # ---------------------------------------------------------------
+  # Redis metrics (when redis_exporter is added)
+  # ---------------------------------------------------------------
+  # - job_name: redis
+  #   static_configs:
+  #     - targets: ["redis-exporter:9121"]
+
+  # ---------------------------------------------------------------
+  # PostgreSQL metrics (when postgres_exporter is added)
+  # ---------------------------------------------------------------
+  # - job_name: postgres
+  #   static_configs:
+  #     - targets: ["postgres-exporter:9187"]

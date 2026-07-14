@@ -1,0 +1,61 @@
+# =============================================================================
+# Secret Signal — Docker Ignore
+# Prevents unnecessary files from reaching Docker build context
+# =============================================================================
+
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+.mypy_cache
+.ruff_cache
+*.egg-info
+dist/
+build/
+.venv/
+venv/
+
+# Node
+frontend/frontend/node_modules
+frontend/node_modules
+
+# IDE
+.vscode
+.idea
+
+# Environment files (never in images)
+.env
+.env.*
+!.env.example
+
+# Documentation
+mds/
+docs/
+*.md
+!README.md
+
+# ML artifacts (build separately)
+backend/mlruns/
+backend/mlflow.db
+
+# Scripts (not needed in container)
+backend/play_*.py
+backend/run_*.py
+backend/test_*.py
+backend/create_table.py
+backend/server.log
+
+# Infrastructure (not needed in app containers)
+infrastructure/
+.github/
+
+# Docker files
+docker-compose*.yml
+
+# License
+LICENSE

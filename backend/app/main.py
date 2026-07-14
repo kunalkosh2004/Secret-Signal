@@ -1,6 +1,8 @@
 """
 Secret Signal Backend — FastAPI application entry point.
 """
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,6 +15,10 @@ from app.voting.router import router as votes_router
 from app.analytics.router import router as analytics_router
 from app.rooms import repository as room_repository
 from app.core.exceptions import AppException
+from app.core.config import settings
+from app.core.logging import setup_logging, get_logger
+from app.core.security_middleware import SecurityHeadersMiddleware, RequestIDMiddleware
+from app.core.health import router as health_router
 
 from app.db.session import SessionLocal
 from app.websocket.handlers import (
@@ -25,7 +31,54 @@ from app.websocket.handlers import (
 )
 from app.websocket.manager import manager
 
-app = FastAPI(title="Secret Signal Backend")
+# ---------------------------------------------------------------------------
+# Logging
+# ---------------------------------------------------------------------------
+setup_logging()
+logger = get_logger("app.main")
+
+
+# ---------------------------------------------------------------------------
+# Lifespan — startup / shutdown events
+# ---------------------------------------------------------------------------
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifecycle: runs on startup and shutdown."""
+    logger.info("secret_signal_backend_starting", extra={
+        "environment": settings.environment,
+        "debug": settings.debug,
+    })
+    yield
+    logger.info("secret_signal_backend_shutting_down")
+
+
+# ---------------------------------------------------------------------------
+# App
+# ---------------------------------------------------------------------------
+app = FastAPI(
+    title="Secret Signal Backend",
+    description="Real-time multiplayer social deduction game API",
+    version="0.1.0",
+    lifespan=lifespan,
+)
+
+# ---------------------------------------------------------------------------
+# Middleware (order matters — last added = first executed)
+# ---------------------------------------------------------------------------
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(RequestIDMiddleware)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",   # Vite dev server
+        "http://localhost:4173",   # Vite preview
+        "http://localhost:3000",   # Docker nginx
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 @app.exception_handler(AppException)
 async def app_exception_handler(
@@ -47,6 +100,7 @@ async def websocket_endpoint(
     room_code: str,
 ):
     room_code = room_code.strip().upper()
+    logger.info("websocket_connecting", extra={"room_code": room_code})
 
     async with SessionLocal() as db:
         user, user_id = await authenticate_websocket(
@@ -55,6 +109,7 @@ async def websocket_endpoint(
         )
 
         if user is None or user_id is None:
+            logger.warning("websocket_auth_failed", extra={"room_code": room_code})
             await websocket.close(code=1008)
             return
 
@@ -65,6 +120,9 @@ async def websocket_endpoint(
         )
 
         if not is_authorized:
+            logger.warning("websocket_not_authorized", extra={
+                "room_code": room_code, "user_id": user_id,
+            })
             await websocket.close(code=1008)
             return
 
@@ -73,6 +131,10 @@ async def websocket_endpoint(
             user_id=user_id,
             websocket=websocket,
         )
+        logger.info("websocket_connected", extra={
+            "room_code": room_code, "user_id": user_id,
+        })
+
         await broadcast_room_state(
             db=db,
             room_code=room_code,
@@ -107,6 +169,9 @@ async def websocket_endpoint(
                 )
 
         except WebSocketDisconnect:
+            logger.info("websocket_disconnected", extra={
+                "room_code": room_code, "user_id": user_id,
+            })
             await manager.async_disconnect(
                 room_code=room_code,
                 user_id=user_id,
@@ -139,44 +204,20 @@ async def websocket_endpoint(
             )
 
         except Exception:
+            logger.exception("websocket_unhandled_error", extra={
+                "room_code": room_code, "user_id": user_id,
+            })
             await manager.async_disconnect(
                 room_code=room_code,
                 user_id=user_id,
                 websocket=websocket,
             )
-# ---------------------------------------------------------------------------
-# CORS — Cross-Origin Resource Sharing
-# ---------------------------------------------------------------------------
-# During development:
-#   Frontend:  http://localhost:5173
-#   Backend:   http://localhost:8000
-#
-# These are DIFFERENT ORIGINS (different ports).
-# Without CORS, the browser blocks frontend JavaScript from calling the backend.
-#
-# For production, replace the list with the actual frontend domain(s).
-# Do NOT use ["*"] (allow all origins) if you send cookies or credentials,
-# because the browser will reject credentialed requests with wildcard origins.
-#
-# If you switch to HttpOnly cookies for auth, you MUST:
-#   - Set allow_origins to the exact frontend origin (not "*")
-#   - Set allow_credentials = True
-# ---------------------------------------------------------------------------
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",   # Vite dev server
-        "http://localhost:4173",   # Vite preview
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 
 # ---------------------------------------------------------------------------
 # Routers
 # ---------------------------------------------------------------------------
+app.include_router(health_router)
 app.include_router(auth_router)
 app.include_router(rooms_router)
 app.include_router(games_router)
@@ -184,10 +225,5 @@ app.include_router(chat_router)
 app.include_router(votes_router)
 app.include_router(analytics_router)
 
-
-# ---------------------------------------------------------------------------
-# Health check
-# ---------------------------------------------------------------------------
-@app.get("/health")
-async def health():
-    return {"status": "ok"}
+from app.replay.router import router as replay_router
+app.include_router(replay_router)

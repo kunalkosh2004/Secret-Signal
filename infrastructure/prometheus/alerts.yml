@@ -1,0 +1,71 @@
+# =============================================================================
+# Secret Signal — Prometheus Alert Rules
+# =============================================================================
+
+groups:
+  - name: backend_alerts
+    rules:
+      # High error rate (>5% of requests returning 5xx)
+      - alert: HighErrorRate
+        expr: |
+          (
+            sum(rate(http_requests_total{status=~"5.."}[5m]))
+            /
+            sum(rate(http_requests_total[5m]))
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High error rate on backend"
+          description: "Error rate is {{ $value | humanizePercentage }} over the last 5 minutes."
+
+      # High latency (p95 > 2s)
+      - alert: HighLatency
+        expr: |
+          histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High p95 latency"
+          description: "P95 latency is {{ $value }}s."
+
+      # Backend down
+      - alert: BackendDown
+        expr: up{job="secret-signal-backend"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Backend service is down"
+
+  - name: infrastructure_alerts
+    rules:
+      # PostgreSQL down
+      - alert: PostgresDown
+        expr: pg_up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "PostgreSQL is unreachable"
+
+      # Redis down
+      - alert: RedisDown
+        expr: redis_up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Redis is unreachable"
+
+      # High memory usage (>90%)
+      - alert: HighMemoryUsage
+        expr: |
+          (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage"

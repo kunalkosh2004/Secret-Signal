@@ -9,6 +9,7 @@ export interface PlayerAnalysis {
   suspicion_score: number
   voting_accuracy: number
   round_breakdown: RoundBreakdown[]
+  score: number
 }
 
 export interface RoundBreakdown {

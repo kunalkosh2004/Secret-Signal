@@ -1,0 +1,77 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "panels": [
+    {
+      "title": "PostgreSQL Status",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "targets": [
+        { "expr": "pg_up", "legendFormat": "PostgreSQL", "refId": "A" }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } }, "type": "value" }
+          ]
+        }
+      }
+    },
+    {
+      "title": "Redis Status",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "targets": [
+        { "expr": "redis_up", "legendFormat": "Redis", "refId": "A" }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } }, "type": "value" }
+          ]
+        }
+      }
+    },
+    {
+      "title": "DB Connections",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "targets": [
+        { "expr": "pg_stat_activity_count", "legendFormat": "{{ state }}", "refId": "A" }
+      ]
+    },
+    {
+      "title": "Redis Memory",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "targets": [
+        { "expr": "redis_memory_used_bytes", "legendFormat": "Used", "refId": "A" },
+        { "expr": "redis_memory_max_bytes", "legendFormat": "Max", "refId": "B" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "bytes" } }
+    },
+    {
+      "title": "Redis Operations/sec",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "targets": [
+        { "expr": "sum(rate(redis_commands_total[5m])) by (cmd)", "legendFormat": "{{ cmd }}", "refId": "A" }
+      ]
+    },
+    {
+      "title": "DB Query Latency",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "targets": [
+        { "expr": "histogram_quantile(0.95, sum(rate(pg_stat_activity_duration_milliseconds_bucket[5m])) by (le, state))", "legendFormat": "{{ state }} p95", "refId": "A" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "ms" } }
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["secret-signal", "infrastructure"],
+  "time": { "from": "now-1h", "to": "now" },
+  "title": "Secret Signal — Infrastructure",
+  "uid": "secret-signal-infrastructure",
+  "version": 1
+}

@@ -735,6 +735,21 @@ async def check_mission_completion(
     mission.status = "completed"
     mission.completed_at = datetime.now(timezone.utc)
 
+    # Record mission completed event for replay
+    from app.events import repository as event_repository
+    await event_repository.create_event(
+        db=db,
+        game_id=mission.game_id,
+        event_type="mission_completed",
+        round_number=mission.round_number,
+        user_id=mission.user_id,
+        payload={
+            "mission_id": mission.id,
+            "mission_type": mission.mission_type,
+            "title": mission.title,
+        },
+    )
+
     try:
         await db.commit()
         await db.refresh(mission)
@@ -802,6 +817,21 @@ async def increment_mission_progress(
         mission.status = "completed"
         mission.completed_at = datetime.now(timezone.utc)
 
+        # Record mission completed event for replay
+        from app.events import repository as event_repository
+        await event_repository.create_event(
+            db=db,
+            game_id=game_id,
+            event_type="mission_completed",
+            round_number=round_number,
+            user_id=user_id,
+            payload={
+                "mission_id": mission.id,
+                "mission_type": mission.mission_type,
+                "title": mission.title,
+            },
+        )
+
     await db.flush()
 
     return mission
@@ -855,6 +885,21 @@ async def evaluate_message_missions(
         if mission.current_value >= mission.target_value:
             mission.status = "completed"
             mission.completed_at = datetime.now(timezone.utc)
+
+            # Record mission completed event for replay
+            from app.events import repository as event_repository
+            await event_repository.create_event(
+                db=db,
+                game_id=game_id,
+                event_type="mission_completed",
+                round_number=round_number,
+                user_id=sender_user_id,
+                payload={
+                    "mission_id": mission.id,
+                    "mission_type": mission.mission_type,
+                    "title": mission.title,
+                },
+            )
 
         updated_missions.append(mission)
 

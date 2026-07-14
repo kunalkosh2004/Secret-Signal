@@ -217,6 +217,15 @@ async def advance_phase(
     ):
         game.round_number += 1
 
+        # Record round started event
+        await event_repository.create_event(
+            db=db,
+            game_id=game.id,
+            event_type="round_started",
+            round_number=game.round_number,
+            payload={"round_number": game.round_number},
+        )
+
         coordinator = await game_repository.get_player_by_role(
             db=db,
             game_id=game.id,

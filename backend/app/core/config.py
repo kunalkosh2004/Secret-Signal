@@ -25,6 +25,10 @@ class Settings(BaseSettings):
     backend_port: int = 8000
     debug: bool = True
 
+    # Environment
+    environment: str = "development"
+    log_level: str = "info"
+
     secret_key: str
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
@@ -40,6 +44,9 @@ class Settings(BaseSettings):
     redis_password: str = ""
     redis_db: int = 0
     redis_url: str = ""
+
+    # OpenTelemetry (future)
+    otel_exporter_otlp_endpoint: str = ""
 
     @model_validator(mode="after")
     def populate_redis_url(self) -> "Settings":

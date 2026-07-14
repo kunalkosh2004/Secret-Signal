@@ -90,6 +90,7 @@ async def get_game_analysis(
                 "suspicion_score": p.suspicion_score,
                 "voting_accuracy": p.voting_accuracy,
                 "round_breakdown": p.round_breakdown,
+                "score": p.score,
             }
             for p in analysis.players
         ],

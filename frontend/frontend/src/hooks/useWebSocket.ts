@@ -17,6 +17,7 @@ import type {
   VoteCastEvent,
   TimerUpdatedEvent,
   MLTrainedEvent,
+  SignalAIResultEvent,
 } from '../features/room/types/game.types'
 import type { ChatMessage } from '../features/chat/types/chat.types'
 
@@ -53,6 +54,7 @@ interface UseWebSocketResult {
   lastVoteCast: VoteCastEvent | null
   lastTimerUpdated: TimerUpdatedEvent | null
   lastMLTrained: MLTrainedEvent | null
+  lastSignalAIResult: SignalAIResultEvent | null
   chatMessages: ChatMessage[]
   sendMessage: (event: WsClientEvent) => void
 }
@@ -71,6 +73,7 @@ export function useWebSocket(roomCode: string | null): UseWebSocketResult {
   const [lastVoteCast, setLastVoteCast] = useState<VoteCastEvent | null>(null)
   const [lastTimerUpdated, setLastTimerUpdated] = useState<TimerUpdatedEvent | null>(null)
   const [lastMLTrained, setLastMLTrained] = useState<MLTrainedEvent | null>(null)
+  const [lastSignalAIResult, setLastSignalAIResult] = useState<SignalAIResultEvent | null>(null)
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
   const wsRef = useRef<WebSocket | null>(null)
   const tokenRef = useRef<string | null>(null)
@@ -120,6 +123,7 @@ export function useWebSocket(roomCode: string | null): UseWebSocketResult {
       setLastVoteCast(null)
       setLastTimerUpdated(null)
       setLastMLTrained(null)
+      setLastSignalAIResult(null)
       setChatMessages([])
       return
     }
@@ -181,6 +185,9 @@ export function useWebSocket(roomCode: string | null): UseWebSocketResult {
               break
             case 'ML_TRAINED':
               setLastMLTrained(data)
+              break
+            case 'SIGNAL_AI_RESULT':
+              setLastSignalAIResult(data)
               break
             case 'CHAT_HISTORY':
               setChatMessages((prev) => mergeChatMessages(prev, data.messages))
@@ -254,6 +261,7 @@ export function useWebSocket(roomCode: string | null): UseWebSocketResult {
     lastVoteCast,
     lastTimerUpdated,
     lastMLTrained,
+    lastSignalAIResult,
     chatMessages,
     sendMessage,
   }

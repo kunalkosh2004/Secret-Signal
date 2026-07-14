@@ -101,3 +101,46 @@ export interface MLTrainedEvent {
   accuracy: number | null
   samples_used: number | null
 }
+
+// ---------------------------------------------------------------------------
+// Signal AI types
+// ---------------------------------------------------------------------------
+
+export interface BehaviorMetric {
+  name: string
+  label: string
+  value: number
+  normalized: number
+}
+
+export interface PlayerSuspicion {
+  user_id: number
+  username: string
+  role_visible: string
+  suspicion_score: number
+  confidence: 'low' | 'medium' | 'high'
+  reasons: string[]
+  behavior_metrics: BehaviorMetric[]
+}
+
+export interface SignalAIReport {
+  scan_id: string
+  game_id: number
+  round_number: number
+  detective_id: number
+  most_suspicious: PlayerSuspicion | null
+  all_players: PlayerSuspicion[]
+  scans_used: number
+  scans_remaining: number
+  model_version: string
+  generated_at: string
+}
+
+export interface SignalAIResultEvent {
+  type: 'SIGNAL_AI_RESULT'
+  status: 'ready' | 'error' | 'cooldown'
+  message?: string
+  report?: SignalAIReport
+  scans_used?: number
+  scans_remaining?: number
+}

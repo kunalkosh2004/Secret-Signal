@@ -22,6 +22,9 @@ from app.voting import service as voting_service
 from app.voting import repository as vote_repository
 from app.events import repository as event_repository
 from app.training import repository as training_repository
+from app.signal_ai.service import generate_signal_report
+from app.signal_ai.models import SignalAIConfig
+from app.core.redis import redis_client
 
 # Allowed emoji reactions
 ALLOWED_EMOJIS = {"👍", "👎", "❤️", "😂", "😮", "😢", "🔥", "👀", "🎯", "✅"}
@@ -780,6 +783,19 @@ async def handle_message(
                         round_number=game.round_number,
                     )
 
+                # Record reaction event for replay
+                await event_repository.create_event(
+                    db=db,
+                    game_id=game.id,
+                    event_type="reaction_added",
+                    round_number=game.round_number,
+                    user_id=user_id,
+                    payload={
+                        "message_id": message_id,
+                        "emoji": emoji,
+                    },
+                )
+
             await db.commit()
 
             # Get updated reaction counts
@@ -844,6 +860,22 @@ async def handle_message(
                 user_id=user_id,
                 emoji=emoji,
             )
+
+            # Record reaction removal event for replay
+            game = await game_repository.get_by_room_id(db, room_id=room.id)
+            if game is not None and game.status == "active":
+                await event_repository.create_event(
+                    db=db,
+                    game_id=game.id,
+                    event_type="reaction_removed",
+                    round_number=game.round_number,
+                    user_id=user_id,
+                    payload={
+                        "message_id": message_id,
+                        "emoji": emoji,
+                    },
+                )
+
             await db.commit()
 
             if removed:
@@ -870,6 +902,110 @@ async def handle_message(
             await websocket.send_json(
                 {"type": "ERROR", "message": "Failed to remove reaction"}
             )
+        return
+
+    # --------------------------------------------------
+    # SIGNAL_AI_SCAN
+    # --------------------------------------------------
+
+    if event_type == "SIGNAL_AI_SCAN":
+        # 1. Load game and validate phase
+        room = await room_repository.get_by_code(db, room_code)
+        if room is None:
+            await websocket.send_json(
+                {"type": "ERROR", "message": "Room not found"}
+            )
+            return
+
+        game = await game_repository.get_active_game(db, room_id=room.id)
+        if game is None:
+            await websocket.send_json(
+                {"type": "SIGNAL_AI_RESULT", "status": "error", "message": "No active game"}
+            )
+            return
+
+        # Only allow during discussion phase
+        if game.phase != GamePhase.DISCUSSION.value:
+            await websocket.send_json({
+                "type": "SIGNAL_AI_RESULT",
+                "status": "error",
+                "message": "Signal AI can only be used during the Discussion phase",
+                "scans_used": 0,
+                "scans_remaining": SignalAIConfig.MAX_SCANS_PER_MATCH,
+            })
+            return
+
+        # 2. Verify caller is the detective
+        game_player = await game_repository.get_game_player(
+            db, game_id=game.id, user_id=user_id,
+        )
+        if game_player is None or game_player.role != "detective":
+            await websocket.send_json(
+                {"type": "SIGNAL_AI_RESULT", "status": "error", "message": "Only the Detective can use Signal AI"}
+            )
+            return
+
+        # 3. Check scan usage via Redis
+        scan_count_key = f"signal_ai:scans:{game.id}:{user_id}"
+        round_cooldown_key = f"signal_ai:round:{game.id}:{user_id}"
+
+        scans_used_raw = await redis_client.get(scan_count_key)
+        scans_used = int(scans_used_raw) if scans_used_raw else 0
+
+        if scans_used >= SignalAIConfig.MAX_SCANS_PER_MATCH:
+            await websocket.send_json({
+                "type": "SIGNAL_AI_RESULT",
+                "status": "cooldown",
+                "message": f"Maximum scans reached ({SignalAIConfig.MAX_SCANS_PER_MATCH} per match)",
+                "scans_used": scans_used,
+                "scans_remaining": 0,
+            })
+            return
+
+        # Check round cooldown
+        last_round_raw = await redis_client.get(round_cooldown_key)
+        last_round = int(last_round_raw) if last_round_raw else 0
+        if last_round == game.round_number:
+            await websocket.send_json({
+                "type": "SIGNAL_AI_RESULT",
+                "status": "cooldown",
+                "message": "One scan per round. Wait for the next round.",
+                "scans_used": scans_used,
+                "scans_remaining": SignalAIConfig.MAX_SCANS_PER_MATCH - scans_used,
+            })
+            return
+
+        # 4. Generate the Signal AI report
+        try:
+            report = await generate_signal_report(
+                db=db,
+                game_id=game.id,
+                detective_id=user_id,
+            )
+            # Inject actual scan counts
+            report.scans_used = scans_used + 1
+            report.scans_remaining = SignalAIConfig.MAX_SCANS_PER_MATCH - (scans_used + 1)
+
+            # 5. Update Redis counters
+            await redis_client.set(scan_count_key, str(scans_used + 1))
+            await redis_client.set(round_cooldown_key, str(game.round_number))
+
+            # 6. Send result privately to the detective
+            await websocket.send_json({
+                "type": "SIGNAL_AI_RESULT",
+                "status": "ready",
+                "report": report.model_dump(mode="json"),
+            })
+
+        except Exception as exc:
+            logger.warning("Signal AI scan failed: %s", exc)
+            await websocket.send_json({
+                "type": "SIGNAL_AI_RESULT",
+                "status": "error",
+                "message": "Analysis failed. Please try again.",
+                "scans_used": scans_used,
+                "scans_remaining": SignalAIConfig.MAX_SCANS_PER_MATCH - scans_used,
+            })
         return
 
     # --------------------------------------------------

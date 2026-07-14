@@ -28,6 +28,7 @@ class PlayerBehaviorProfile:
     unique_emojis_used: int = 0
     reply_to_coordinator: int = 0
     reply_to_citizen: int = 0
+    score: int = 0
 
 
 @dataclass
@@ -221,7 +222,7 @@ async def analyze_game(
     messages_by_player: dict[int, list[dict]] = {}
     for event in all_events:
         if event.event_type == "message_sent":
-            uid = event.user_id
+            uid = event.actor_id
             if uid not in messages_by_player:
                 messages_by_player[uid] = []
             messages_by_player[uid].append(
@@ -370,6 +371,7 @@ async def analyze_game(
             unique_emojis_used=unique_emojis_used,
             reply_to_coordinator=reply_to_coordinator,
             reply_to_citizen=reply_to_citizen,
+            score=gp.score,
         )
 
         profiles.append(profile)

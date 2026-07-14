@@ -1,6 +1,31 @@
-version: '3.8'
+# =============================================================================
+# Secret Signal — Docker Compose
+# Local development environment
+# =============================================================================
+#
+# Usage:
+#   docker compose up -d              Start all services
+#   docker compose up -d --build      Rebuild and start
+#   docker compose logs -f backend    Follow backend logs
+#   docker compose down               Stop all services
+#   docker compose down -v            Stop and remove volumes (destroys data)
+#
+# Services:
+#   postgres     PostgreSQL 15 (port 5433)
+#   redis        Redis 7 (port 6379)
+#   backend      FastAPI application (port 8000)
+#   frontend     React app served via nginx (port 3000)
+#
+# Profiles:
+#   monitoring   Prometheus + Grafana + Loki + Tempo
+#   tools        Adminer (DB browser) + Redis Commander
+# =============================================================================
 
 services:
+  # ===========================================================================
+  # DATA STORES
+  # ===========================================================================
+
   postgres:
     image: postgres:15-alpine
     container_name: secret_signal_postgres
@@ -12,28 +37,204 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "5433:5432"
+      - "${POSTGRES_EXTERNAL_PORT:-5433}:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER"]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
+    networks:
+      - internal
 
   redis:
     image: redis:7-alpine
     container_name: secret_signal_redis
     restart: unless-stopped
-    command: redis-server --appendonly yes
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
     volumes:
       - redis_data:/data
     ports:
-      - "6379:6379"
+      - "${REDIS_EXTERNAL_PORT:-6379}:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 5s
+    networks:
+      - internal
 
+  # ===========================================================================
+  # APPLICATION
+  # ===========================================================================
+
+  backend:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.backend
+    container_name: secret_signal_backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-secret_signal}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_URL: redis://redis:6379/0
+      SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-http://localhost:8000/api/v1/auth/google/callback}
+      GOOGLE_LINK_REDIRECT_URI: ${GOOGLE_LINK_REDIRECT_URI:-http://localhost:8000/api/v1/auth/google/link/callback}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      DEBUG: ${DEBUG:-true}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      # Telemetry (future)
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      OTEL_SERVICE_NAME: secret-signal-backend
+    ports:
+      - "${BACKEND_EXTERNAL_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - internal
+
+  frontend:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.frontend
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
+        VITE_WS_URL: ${VITE_WS_URL:-ws://localhost:8000/ws}
+    container_name: secret_signal_frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_EXTERNAL_PORT:-3000}:80"
+    depends_on:
+      backend:
+        condition: service_started
+    networks:
+      - internal
+
+  # ===========================================================================
+  # MONITORING (profile: monitoring)
+  # ===========================================================================
+
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    container_name: secret_signal_prometheus
+    restart: unless-stopped
+    profiles:
+      - monitoring
+    volumes:
+      - ./infrastructure/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infrastructure/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - internal
+
+  grafana:
+    image: grafana/grafana:11.1.0
+    container_name: secret_signal_grafana
+    restart: unless-stopped
+    profiles:
+      - monitoring
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./infrastructure/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infrastructure/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3001:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - internal
+
+  loki:
+    image: grafana/loki:3.1.0
+    container_name: secret_signal_loki
+    restart: unless-stopped
+    profiles:
+      - monitoring
+    volumes:
+      - ./infrastructure/loki/loki-config.yml:/etc/loki/local-config.yaml:ro
+      - loki_data:/loki
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - internal
+
+  tempo:
+    image: grafana/tempo:2.5.1
+    container_name: secret_signal_tempo
+    restart: unless-stopped
+    profiles:
+      - monitoring
+    volumes:
+      - ./infrastructure/tempo/tempo-config.yml:/etc/tempo/tempo-config.yml:ro
+      - tempo_data:/var/tempo
+    ports:
+      - "3200:3200"
+    command: -config.file=/etc/tempo/tempo-config.yml
+    networks:
+      - internal
+
+  # ===========================================================================
+  # DEVELOPMENT TOOLS (profile: tools)
+  # ===========================================================================
+
+  adminer:
+    image: adminer:latest
+    container_name: secret_signal_adminer
+    restart: unless-stopped
+    profiles:
+      - tools
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+    networks:
+      - internal
+
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: secret_signal_redis_commander
+    restart: unless-stopped
+    profiles:
+      - tools
+    environment:
+      REDIS_HOSTS: local:redis:6379
+    ports:
+      - "8081:8081"
+    depends_on:
+      - redis
+    networks:
+      - internal
+
+# =============================================================================
+# VOLUMES
+# =============================================================================
 volumes:
   postgres_data:
   redis_data:
+  prometheus_data:
+  grafana_data:
+  loki_data:
+  tempo_data:
+
+# =============================================================================
+# NETWORKS
+# =============================================================================
+networks:
+  internal:
+    driver: bridge

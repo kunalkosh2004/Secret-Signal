@@ -1,0 +1,69 @@
+# =============================================================================
+# Secret Signal — Backend Dockerfile
+# Multi-stage build: dependencies → runtime
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# Stage 1: Build dependencies
+# ---------------------------------------------------------------------------
+FROM python:3.12-slim AS builder
+
+WORKDIR /app
+
+# System dependencies for asyncpg, bcrypt, etc.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY backend/pyproject.toml backend/README.md ./
+
+# Install dependencies into a virtual env
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+COPY backend/ .
+
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -e ".[dev]"
+
+# ---------------------------------------------------------------------------
+# Stage 2: Runtime
+# ---------------------------------------------------------------------------
+FROM python:3.12-slim AS runtime
+
+# Security: non-root user
+RUN groupadd -r secretsignal && useradd -r -g secretsignal -d /app -s /sbin/nologin secretsignal
+
+WORKDIR /app
+
+# Runtime system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq5 \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy virtual env from builder
+COPY --from=builder /opt/venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Copy application code
+COPY backend/ .
+
+# Own everything to non-root user
+RUN chown -R secretsignal:secretsignal /app
+
+USER secretsignal
+
+# Environment defaults (overridden by docker-compose / env vars)
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    BACKEND_HOST=0.0.0.0 \
+    BACKEND_PORT=8000
+
+EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

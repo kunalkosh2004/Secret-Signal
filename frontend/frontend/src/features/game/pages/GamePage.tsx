@@ -9,6 +9,7 @@ import { ChatPanel } from '../../chat/components/ChatPanel'
 import { VotePanel } from '../components/VotePanel'
 import { MissionPanel } from '../components/MissionPanel'
 import { ScoreBoard } from '../components/ScoreBoard'
+import { SignalAIAnalysisPanel } from '../components/SignalAIAnalysisPanel'
 import type { RoomResponse } from '../../room/types/room.types'
 import type { MissionData, GameScore, VoteResults } from '../../room/types/game.types'
 
@@ -66,6 +67,7 @@ export function GamePage() {
     lastVoteResults,
     lastVoteCast,
     lastTimerUpdated,
+    lastSignalAIResult,
     isConnected,
     chatMessages,
     sendMessage,
@@ -197,6 +199,10 @@ export function GamePage() {
 
   const handleRemoveReaction = useCallback((messageId: number, emoji: string) => {
     sendMessage({ type: 'REMOVE_REACTION', payload: { message_id: messageId, emoji } })
+  }, [sendMessage])
+
+  const handleSignalAIScan = useCallback(() => {
+    sendMessage({ type: 'SIGNAL_AI_SCAN' })
   }, [sendMessage])
 
   if (!isAuthenticated) {
@@ -360,16 +366,30 @@ export function GamePage() {
                 Discuss who you think the Coordinator is.
               </div>
 
-              {/* Chat */}
-              <div className="h-[400px]">
-                {user && (
-                  <ChatPanel
-                    messages={chatMessages}
-                    onSend={handleSendMessage}
-                    onReact={handleReact}
-                    onRemoveReaction={handleRemoveReaction}
-                    currentUserId={user.id}
-                  />
+              <div className="flex gap-4">
+                {/* Chat — main area */}
+                <div className="flex-1 h-[400px]">
+                  {user && (
+                    <ChatPanel
+                      messages={chatMessages}
+                      onSend={handleSendMessage}
+                      onReact={handleReact}
+                      onRemoveReaction={handleRemoveReaction}
+                      currentUserId={user.id}
+                    />
+                  )}
+                </div>
+
+                {/* Signal AI — detective only */}
+                {role === 'detective' && (
+                  <div className="w-72 flex-shrink-0">
+                    <SignalAIAnalysisPanel
+                      signalAIResult={lastSignalAIResult}
+                      onScan={handleSignalAIScan}
+                      scansUsed={0}
+                      scansRemaining={4}
+                    />
+                  </div>
                 )}
               </div>
             </div>

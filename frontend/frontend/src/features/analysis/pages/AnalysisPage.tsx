@@ -194,7 +194,7 @@ export function AnalysisPage() {
               user_id: p.user_id,
               role: p.role,
               username: p.username,
-              score: p.suspicion_score,
+              score: p.score,
             }))}
           />
         </div>
@@ -240,12 +240,20 @@ export function AnalysisPage() {
 
         {/* Back to Lobby */}
         <div className="mt-8 text-center animate-fade-in-up" style={{ animationDelay: '0.25s' }}>
-          <Link
-            to="/lobby"
-            className="inline-block px-6 py-2 border border-gray-400/30 rounded text-sm font-mono text-gray-600 hover:text-gray-900 hover:border-gray-400 transition-all"
-          >
-            BACK TO LOBBY
-          </Link>
+          <div className="flex items-center justify-center gap-3">
+            <Link
+              to="/lobby"
+              className="inline-block px-6 py-2 border border-gray-400/30 rounded text-sm font-mono text-gray-600 hover:text-gray-900 hover:border-gray-400 transition-all"
+            >
+              BACK TO LOBBY
+            </Link>
+            <Link
+              to={`/game/${analysis.game_id}/replay`}
+              className="inline-block px-6 py-2 border border-accent/50 rounded text-sm font-mono text-accent hover:bg-accent hover:text-white transition-all"
+            >
+              VIEW REPLAY
+            </Link>
+          </div>
         </div>
       </div>
     </div>

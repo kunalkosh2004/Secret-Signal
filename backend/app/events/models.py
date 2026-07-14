@@ -6,6 +6,7 @@ from sqlalchemy import (
     Integer,
     JSON,
     String,
+    Index,
 )
 
 from app.db.base import Base
@@ -27,6 +28,13 @@ class GameEvent(Base):
         index=True,
     )
 
+    sequence_number = Column(
+        Integer,
+        nullable=False,
+        default=0,
+        comment="Deterministic ordering within a game. Replaces timestamp-based ordering for replay.",
+    )
+
     round_number = Column(
         Integer,
         nullable=True,
@@ -39,11 +47,12 @@ class GameEvent(Base):
         index=True,
     )
 
-    user_id = Column(
+    actor_id = Column(
         Integer,
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
+        comment="The user who performed this action (renamed from user_id for clarity).",
     )
 
     payload = Column(
@@ -52,8 +61,25 @@ class GameEvent(Base):
         default=dict,
     )
 
+    event_metadata = Column(
+        "metadata",
+        JSON,
+        nullable=False,
+        default=dict,
+        comment="Additional context: timing, source, version info.",
+    )
+
     created_at = Column(
         DateTime(timezone=True),
         server_default=func.now(),
         nullable=False,
+    )
+
+    __table_args__ = (
+        Index(
+            "ix_game_events_game_sequence",
+            "game_id",
+            "sequence_number",
+            unique=True,
+        ),
     )
