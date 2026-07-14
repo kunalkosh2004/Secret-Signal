@@ -24,13 +24,12 @@ DEFAULT_PHASE_DURATIONS = {
 
 DEFAULT_MAX_ROUNDS = 1
 
+
 def assign_roles(
     user_ids: list[int],
 ) -> dict[int, str]:
     if len(user_ids) < 3:
-        raise ValueError(
-            "At least 3 players are required to start a game"
-        )
+        raise ValueError("At least 3 players are required to start a game")
 
     shuffled_user_ids = user_ids.copy()
 
@@ -46,6 +45,7 @@ def assign_roles(
 
     return assignments
 
+
 async def start_game(
     db: AsyncSession,
     room_code: str,
@@ -60,14 +60,10 @@ async def start_game(
         raise ValueError("Room not found")
 
     if room.host_id != requester_id:
-        raise ValueError(
-            "Only the room host can start the game"
-        )
+        raise ValueError("Only the room host can start the game")
 
     if room.status != "waiting":
-        raise ValueError(
-            "Room is not in waiting state"
-        )
+        raise ValueError("Room is not in waiting state")
 
     existing_game = await game_repository.get_by_room_id(
         db,
@@ -75,9 +71,7 @@ async def start_game(
     )
 
     if existing_game is not None:
-        raise ValueError(
-            "A game has already been created for this room"
-        )
+        raise ValueError("A game has already been created for this room")
 
     players = await room_repository.get_players(
         db,
@@ -91,14 +85,9 @@ async def start_game(
     )
     for player, is_ready in players_with_ready:
         if player.id != room.host_id and not is_ready:
-            raise ValueError(
-                "All players must be ready before starting the game"
-            )
+            raise ValueError("All players must be ready before starting the game")
 
-    user_ids = [
-        player.id
-        for player in players
-    ]
+    user_ids = [player.id for player in players]
 
     role_assignments = assign_roles(user_ids)
 
@@ -106,7 +95,9 @@ async def start_game(
         room_settings = room.settings or {}
         game_settings = {
             "max_rounds": room_settings.get("max_rounds", DEFAULT_MAX_ROUNDS),
-            "phase_durations": room_settings.get("phase_durations", DEFAULT_PHASE_DURATIONS),
+            "phase_durations": room_settings.get(
+                "phase_durations", DEFAULT_PHASE_DURATIONS
+            ),
         }
 
         game = await game_repository.create_game(
@@ -123,7 +114,7 @@ async def start_game(
                 user_id=user_id,
                 role=role,
             )
-        
+
         coordinator_user_id = next(
             user_id
             for user_id, role in role_assignments.items()
@@ -147,8 +138,7 @@ async def start_game(
                 "room_code": room.code,
                 "player_count": len(user_ids),
                 "roles": {
-                    str(user_id): role
-                    for user_id, role in role_assignments.items()
+                    str(user_id): role for user_id, role in role_assignments.items()
                 },
             },
         )
@@ -164,6 +154,7 @@ async def start_game(
         await db.rollback()
         raise
 
+
 async def advance_phase(
     db: AsyncSession,
     game_id: int,
@@ -176,11 +167,9 @@ async def advance_phase(
 
     if game is None:
         raise ValueError("Game not found")
-    
+
     if game.status == "completed":
-        raise ValueError(
-            "Game has already ended"
-        )
+        raise ValueError("Game has already ended")
 
     current_phase = GamePhase(game.phase)
 
@@ -194,9 +183,7 @@ async def advance_phase(
         and next_phase == GamePhase.ROUND_START
         and game.round_number >= game.max_rounds
     ):
-        raise ValueError(
-            "Maximum rounds reached; game must transition to game_over"
-        )
+        raise ValueError("Maximum rounds reached; game must transition to game_over")
 
     game.phase = next_phase.value
 
@@ -211,10 +198,7 @@ async def advance_phase(
         },
     )
 
-    if (
-        current_phase == GamePhase.RESULT
-        and next_phase == GamePhase.ROUND_START
-    ):
+    if current_phase == GamePhase.RESULT and next_phase == GamePhase.ROUND_START:
         game.round_number += 1
 
         # Record round started event
@@ -233,9 +217,7 @@ async def advance_phase(
         )
 
         if coordinator is None:
-            raise ValueError(
-                "Coordinator not found for game"
-            )
+            raise ValueError("Coordinator not found for game")
 
         await generate_missions(
             db=db,
@@ -257,6 +239,7 @@ async def advance_phase(
         await db.rollback()
         raise
 
+
 async def check_win_condition(
     db: AsyncSession,
     game_id: int,
@@ -269,11 +252,9 @@ async def check_win_condition(
     if game is None:
         raise ValueError("Game not found")
 
-    completed_missions = (
-        await mission_repository.count_completed_missions(
-            db=db,
-            game_id=game_id,
-        )
+    completed_missions = await mission_repository.count_completed_missions(
+        db=db,
+        game_id=game_id,
     )
 
     if completed_missions >= game.max_rounds:
@@ -292,9 +273,7 @@ async def check_win_condition(
         if votes:
             vote_counts: dict[int, int] = {}
             for v in votes:
-                vote_counts[v.target_user_id] = (
-                    vote_counts.get(v.target_user_id, 0) + 1
-                )
+                vote_counts[v.target_user_id] = vote_counts.get(v.target_user_id, 0) + 1
             top_target = max(vote_counts, key=vote_counts.get)
             coordinator = await game_repository.get_player_by_role(
                 db=db,
@@ -308,10 +287,7 @@ async def check_win_condition(
                     reason="coordinator_correctly_identified",
                 )
 
-    if (
-        game.round_number >= game.max_rounds
-        and game.phase == GamePhase.RESULT.value
-    ):
+    if game.round_number >= game.max_rounds and game.phase == GamePhase.RESULT.value:
         return WinConditionResult(
             game_over=True,
             winner="investigation_team",
@@ -329,16 +305,12 @@ async def calculate_final_scores(
     db: AsyncSession,
     game_id: int,
 ) -> dict[int, int]:
-    game = await game_repository.get_by_id(
-        db, game_id=game_id
-    )
+    game = await game_repository.get_by_id(db, game_id=game_id)
 
     if game is None:
         raise ValueError("Game not found")
 
-    game_players = await game_repository.get_game_players(
-        db, game_id=game_id
-    )
+    game_players = await game_repository.get_game_players(db, game_id=game_id)
 
     coordinator = next(
         (gp for gp in game_players if gp.role == "coordinator"),
@@ -348,10 +320,8 @@ async def calculate_final_scores(
     if coordinator is None:
         return {gp.user_id: 0 for gp in game_players}
 
-    completed_missions = (
-        await mission_repository.count_completed_missions(
-            db=db, game_id=game_id
-        )
+    completed_missions = await mission_repository.count_completed_missions(
+        db=db, game_id=game_id
     )
 
     mission_score = completed_missions * 10
@@ -400,9 +370,7 @@ async def calculate_final_scores(
 
     scores: dict[int, int] = {}
 
-    coordinator_score = (
-        mission_score + incorrect_accusations * 5
-    )
+    coordinator_score = mission_score + incorrect_accusations * 5
     scores[coordinator.user_id] = coordinator_score
 
     for gp in game_players:

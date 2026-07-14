@@ -22,6 +22,7 @@ router = APIRouter(
     tags=["rooms"],
 )
 
+
 @router.post(
     "",
     status_code=201,
@@ -37,6 +38,7 @@ async def create_room(
         host_id=current_user.id,
         request=request,
     )
+
 
 @router.post(
     "/join",
@@ -73,6 +75,7 @@ async def join_room(
             detail=message,
         )
 
+
 @router.get(
     "/{code}",
     response_model=RoomResponse,
@@ -94,6 +97,7 @@ async def get_room(
         )
 
     return room
+
 
 @router.post(
     "/{code}/leave",

@@ -172,10 +172,7 @@ def start_phase_timer(
                     round_number=game.round_number,
                 )
 
-                if (
-                    current == GamePhase.RESULT
-                    and next_phase == GamePhase.ROUND_START
-                ):
+                if current == GamePhase.RESULT and next_phase == GamePhase.ROUND_START:
                     game.round_number += 1
 
                 if next_phase == GamePhase.GAME_OVER:
@@ -199,7 +196,9 @@ def start_phase_timer(
                 game_durations = game.phase_durations or {}
                 next_duration = get_phase_duration(next_phase.value, game_durations)
                 if next_duration:
-                    deadline = datetime.now(timezone.utc) + timedelta(seconds=next_duration)
+                    deadline = datetime.now(timezone.utc) + timedelta(
+                        seconds=next_duration
+                    )
                     await manager.broadcast_to_room(
                         room_code=room_code,
                         message={

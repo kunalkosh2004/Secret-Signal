@@ -13,6 +13,7 @@ Usage:
 Alembic discovers models by importing them so their metadata registers
 on Base.metadata before the migration autogenerate runs.
 """
+
 from sqlalchemy.orm import DeclarativeBase
 
 

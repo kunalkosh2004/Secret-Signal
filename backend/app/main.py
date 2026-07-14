@@ -1,6 +1,7 @@
 """
 Secret Signal Backend — FastAPI application entry point.
 """
+
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
@@ -45,10 +46,13 @@ logger = get_logger("app.main")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifecycle: runs on startup and shutdown."""
-    logger.info("secret_signal_backend_starting", extra={
-        "environment": settings.environment,
-        "debug": settings.debug,
-    })
+    logger.info(
+        "secret_signal_backend_starting",
+        extra={
+            "environment": settings.environment,
+            "debug": settings.debug,
+        },
+    )
     yield
     logger.info("secret_signal_backend_shutting_down")
 
@@ -71,9 +75,9 @@ app.add_middleware(RequestIDMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:5173",   # Vite dev server
-        "http://localhost:4173",   # Vite preview
-        "http://localhost:3000",   # Docker nginx
+        "http://localhost:5173",  # Vite dev server
+        "http://localhost:4173",  # Vite preview
+        "http://localhost:3000",  # Docker nginx
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -121,9 +125,13 @@ async def websocket_endpoint(
         )
 
         if not is_authorized:
-            logger.warning("websocket_not_authorized", extra={
-                "room_code": room_code, "user_id": user_id,
-            })
+            logger.warning(
+                "websocket_not_authorized",
+                extra={
+                    "room_code": room_code,
+                    "user_id": user_id,
+                },
+            )
             await websocket.close(code=1008)
             return
 
@@ -132,9 +140,13 @@ async def websocket_endpoint(
             user_id=user_id,
             websocket=websocket,
         )
-        logger.info("websocket_connected", extra={
-            "room_code": room_code, "user_id": user_id,
-        })
+        logger.info(
+            "websocket_connected",
+            extra={
+                "room_code": room_code,
+                "user_id": user_id,
+            },
+        )
 
         await broadcast_room_state(
             db=db,
@@ -170,9 +182,13 @@ async def websocket_endpoint(
                 )
 
         except WebSocketDisconnect:
-            logger.info("websocket_disconnected", extra={
-                "room_code": room_code, "user_id": user_id,
-            })
+            logger.info(
+                "websocket_disconnected",
+                extra={
+                    "room_code": room_code,
+                    "user_id": user_id,
+                },
+            )
             await manager.async_disconnect(
                 room_code=room_code,
                 user_id=user_id,
@@ -205,9 +221,13 @@ async def websocket_endpoint(
             )
 
         except Exception:
-            logger.exception("websocket_unhandled_error", extra={
-                "room_code": room_code, "user_id": user_id,
-            })
+            logger.exception(
+                "websocket_unhandled_error",
+                extra={
+                    "room_code": room_code,
+                    "user_id": user_id,
+                },
+            )
             await manager.async_disconnect(
                 room_code=room_code,
                 user_id=user_id,

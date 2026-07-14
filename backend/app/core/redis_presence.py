@@ -19,6 +19,7 @@ from app.core.redis import redis_client
 # Presence keys
 # ---------------------------------------------------------------------------
 
+
 def _room_key(room_code: str) -> str:
     return f"ws:room:{room_code}"
 
@@ -34,6 +35,7 @@ def _count_key(room_code: str) -> str:
 # ---------------------------------------------------------------------------
 # Core presence operations
 # ---------------------------------------------------------------------------
+
 
 async def track_presence(
     room_code: str,

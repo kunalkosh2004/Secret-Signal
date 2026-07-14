@@ -49,8 +49,9 @@ async def get_all_training_data(
     db: AsyncSession,
 ) -> list[TrainingMessage]:
     result = await db.execute(
-        select(TrainingMessage)
-        .order_by(TrainingMessage.created_at.asc(), TrainingMessage.id.asc())
+        select(TrainingMessage).order_by(
+            TrainingMessage.created_at.asc(), TrainingMessage.id.asc()
+        )
     )
 
     return list(result.scalars().all())
@@ -59,8 +60,6 @@ async def get_all_training_data(
 async def get_training_data_count(
     db: AsyncSession,
 ) -> int:
-    result = await db.execute(
-        select(func.count(TrainingMessage.id))
-    )
+    result = await db.execute(select(func.count(TrainingMessage.id)))
 
     return result.scalar_one()

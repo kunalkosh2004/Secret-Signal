@@ -62,6 +62,7 @@ async def get_game_analysis(
     ml_prediction = None
     try:
         from app.ml.service import predict_coordinator
+
         ml_prediction = await predict_coordinator(
             db=db,
             game_id=game_id,
@@ -137,6 +138,7 @@ async def get_ml_prediction(
 
     try:
         from app.ml.service import predict_coordinator
+
         prediction = await predict_coordinator(
             db=db,
             game_id=game_id,
@@ -161,6 +163,7 @@ async def train_model_endpoint(
 ):
     try:
         from app.ml.service import train_model
+
         result = await train_model(db=db)
         return result
     except Exception as exc:

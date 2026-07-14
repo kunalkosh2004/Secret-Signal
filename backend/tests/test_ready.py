@@ -9,11 +9,7 @@ ROOM_CODE = "W53D68"
 
 
 async def main():
-    url = (
-        f"ws://127.0.0.1:8000/ws"
-        f"?token={TOKEN}"
-        f"&room_code={ROOM_CODE}"
-    )
+    url = f"ws://127.0.0.1:8000/ws?token={TOKEN}&room_code={ROOM_CODE}"
 
     async with websockets.connect(url) as websocket:
         print("Connected")
@@ -66,9 +62,7 @@ async def main():
                 )
 
                 if current_player is not None:
-                    print(
-                        "\nPLAYER_READY test successful"
-                    )
+                    print("\nPLAYER_READY test successful")
                     break
 
 

@@ -18,10 +18,7 @@ async def main():
             next_phase=GamePhase.ROUND_START,
         )
 
-        print(
-            f"Success: game {game.id} "
-            f"is now in phase '{game.phase}'"
-        )
+        print(f"Success: game {game.id} is now in phase '{game.phase}'")
 
         print("\n2. Testing invalid transition")
 

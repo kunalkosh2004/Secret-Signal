@@ -44,8 +44,7 @@ COUNTRY_NAMES = {
 COUNTRY_PATTERN = re.compile(
     r"\b("
     + "|".join(
-        re.escape(country)
-        for country in sorted(COUNTRY_NAMES, key=len, reverse=True)
+        re.escape(country) for country in sorted(COUNTRY_NAMES, key=len, reverse=True)
     )
     + r")\b",
     re.IGNORECASE,
@@ -60,285 +59,952 @@ NUMBER_PATTERN = re.compile(
 )
 
 FOOD_WORDS = {
-    "pizza", "burger", "sushi", "pasta", "rice", "chicken", "beef",
-    "fish", "bread", "cake", "chocolate", "coffee", "tea", "beer",
-    "wine", "apple", "banana", "orange", "mango", "strawberry",
-    "biriyani", "biryani", "dosa", "idli", "samosa", "curry",
-    "noodle", "noodles", "taco", "burrito", "steak", "salad",
-    "soup", "sandwich", "fries", "ice cream", "donut", "pancake",
-    "waffle", "cookie", "brownie", "muffin", "croissant", "bagel",
-    "sushi", "ramen", "pho", "tacos", "burritos", "kebab",
+    "pizza",
+    "burger",
+    "sushi",
+    "pasta",
+    "rice",
+    "chicken",
+    "beef",
+    "fish",
+    "bread",
+    "cake",
+    "chocolate",
+    "coffee",
+    "tea",
+    "beer",
+    "wine",
+    "apple",
+    "banana",
+    "orange",
+    "mango",
+    "strawberry",
+    "biriyani",
+    "biryani",
+    "dosa",
+    "idli",
+    "samosa",
+    "curry",
+    "noodle",
+    "noodles",
+    "taco",
+    "burrito",
+    "steak",
+    "salad",
+    "soup",
+    "sandwich",
+    "fries",
+    "ice cream",
+    "donut",
+    "pancake",
+    "waffle",
+    "cookie",
+    "brownie",
+    "muffin",
+    "croissant",
+    "bagel",
+    "sushi",
+    "ramen",
+    "pho",
+    "tacos",
+    "burritos",
+    "kebab",
 }
 
 MOVIE_WORDS = {
-    "movie", "movies", "film", "films", "cinema", "theater",
-    "hollywood", "bollywood", "netflix", "amazon prime",
-    "disney", "marvel", "dc", "anime", "series", "show",
-    "episode", "season", "director", "actor", "actress",
-    "oscar", "award", "trailer", "scene", "character",
-    "batman", "spiderman", "avengers", "inception", "interstellar",
-    "titanic", "avatar", "frozen", "toy story", "shrek",
+    "movie",
+    "movies",
+    "film",
+    "films",
+    "cinema",
+    "theater",
+    "hollywood",
+    "bollywood",
+    "netflix",
+    "amazon prime",
+    "disney",
+    "marvel",
+    "dc",
+    "anime",
+    "series",
+    "show",
+    "episode",
+    "season",
+    "director",
+    "actor",
+    "actress",
+    "oscar",
+    "award",
+    "trailer",
+    "scene",
+    "character",
+    "batman",
+    "spiderman",
+    "avengers",
+    "inception",
+    "interstellar",
+    "titanic",
+    "avatar",
+    "frozen",
+    "toy story",
+    "shrek",
 }
 
 MUSIC_WORDS = {
-    "music", "song", "songs", "album", "band", "singer",
-    "concert", "playlist", "spotify", "guitar", "piano",
-    "drums", "bass", "melody", "rhythm", "beat", "lyrics",
-    "rap", "rock", "pop", "jazz", "classical", "hip hop",
-    "bts", "ed sheeran", "taylor swift", "drake", "ariana",
-    "concert", "gig", "festival", "dj", "remix",
+    "music",
+    "song",
+    "songs",
+    "album",
+    "band",
+    "singer",
+    "concert",
+    "playlist",
+    "spotify",
+    "guitar",
+    "piano",
+    "drums",
+    "bass",
+    "melody",
+    "rhythm",
+    "beat",
+    "lyrics",
+    "rap",
+    "rock",
+    "pop",
+    "jazz",
+    "classical",
+    "hip hop",
+    "bts",
+    "ed sheeran",
+    "taylor swift",
+    "drake",
+    "ariana",
+    "concert",
+    "gig",
+    "festival",
+    "dj",
+    "remix",
 }
 
 SPORTS_WORDS = {
-    "sports", "football", "soccer", "cricket", "basketball",
-    "tennis", "hockey", "baseball", "volleyball", "golf",
-    "boxing", "mma", "ufc", "wrestling", "f1", "formula 1",
-    "olympics", "world cup", "championship", "tournament",
-    "nba", "nfl", "ipl", "premier league", "champions league",
-    "messi", "ronaldo", "kohli", "dhoni", "sachin",
-    "serena", "federer", "nadal", "lebron", "jordan",
+    "sports",
+    "football",
+    "soccer",
+    "cricket",
+    "basketball",
+    "tennis",
+    "hockey",
+    "baseball",
+    "volleyball",
+    "golf",
+    "boxing",
+    "mma",
+    "ufc",
+    "wrestling",
+    "f1",
+    "formula 1",
+    "olympics",
+    "world cup",
+    "championship",
+    "tournament",
+    "nba",
+    "nfl",
+    "ipl",
+    "premier league",
+    "champions league",
+    "messi",
+    "ronaldo",
+    "kohli",
+    "dhoni",
+    "sachin",
+    "serena",
+    "federer",
+    "nadal",
+    "lebron",
+    "jordan",
 }
 
 EMOTION_WORDS = {
-    "happy", "sad", "angry", "excited", "scared", "afraid",
-    "worried", "anxious", "nervous", "proud", "grateful",
-    "lonely", "jealous", "surprised", "confused", "frustrated",
-    "disappointed", "hopeful", "relieved", "embarrassed",
-    "love", "hate", "fear", "joy", "trust", "regret",
-    "passionate", "obsessed", "addicted", "obsession",
+    "happy",
+    "sad",
+    "angry",
+    "excited",
+    "scared",
+    "afraid",
+    "worried",
+    "anxious",
+    "nervous",
+    "proud",
+    "grateful",
+    "lonely",
+    "jealous",
+    "surprised",
+    "confused",
+    "frustrated",
+    "disappointed",
+    "hopeful",
+    "relieved",
+    "embarrassed",
+    "love",
+    "hate",
+    "fear",
+    "joy",
+    "trust",
+    "regret",
+    "passionate",
+    "obsessed",
+    "addicted",
+    "obsession",
 }
 
 TIME_WORDS = {
-    "morning", "afternoon", "evening", "night", "midnight",
-    "dawn", "dusk", "today", "tomorrow", "yesterday",
-    "week", "month", "year", "decade", "century",
-    "hour", "minute", "second", "o'clock", "am", "pm",
-    "monday", "tuesday", "wednesday", "thursday", "friday",
-    "saturday", "sunday", "weekend", "weekday",
+    "morning",
+    "afternoon",
+    "evening",
+    "night",
+    "midnight",
+    "dawn",
+    "dusk",
+    "today",
+    "tomorrow",
+    "yesterday",
+    "week",
+    "month",
+    "year",
+    "decade",
+    "century",
+    "hour",
+    "minute",
+    "second",
+    "o'clock",
+    "am",
+    "pm",
+    "monday",
+    "tuesday",
+    "wednesday",
+    "thursday",
+    "friday",
+    "saturday",
+    "sunday",
+    "weekend",
+    "weekday",
 }
 
 WEATHER_WORDS = {
-    "weather", "rain", "raining", "sunny", "cloudy", "storm",
-    "stormy", "snow", "snowing", "wind", "windy", "hot",
-    "cold", "warm", "humid", "dry", "flood", "drought",
-    "thunder", "lightning", "fog", "foggy", "hail",
-    "climate", "temperature", "forecast", "season",
+    "weather",
+    "rain",
+    "raining",
+    "sunny",
+    "cloudy",
+    "storm",
+    "stormy",
+    "snow",
+    "snowing",
+    "wind",
+    "windy",
+    "hot",
+    "cold",
+    "warm",
+    "humid",
+    "dry",
+    "flood",
+    "drought",
+    "thunder",
+    "lightning",
+    "fog",
+    "foggy",
+    "hail",
+    "climate",
+    "temperature",
+    "forecast",
+    "season",
 }
 
 ANIMAL_WORDS = {
-    "dog", "cat", "bird", "fish", "lion", "tiger", "elephant",
-    "bear", "wolf", "fox", "rabbit", "horse", "cow", "pig",
-    "chicken", "duck", "snake", "monkey", "ape", "dolphin",
-    "whale", "shark", "eagle", "hawk", "penguin", "owl",
-    "butterfly", "bee", "ant", "spider", "crab", "lobster",
-    "turtle", "frog", "hamster", "parrot", "peacock",
+    "dog",
+    "cat",
+    "bird",
+    "fish",
+    "lion",
+    "tiger",
+    "elephant",
+    "bear",
+    "wolf",
+    "fox",
+    "rabbit",
+    "horse",
+    "cow",
+    "pig",
+    "chicken",
+    "duck",
+    "snake",
+    "monkey",
+    "ape",
+    "dolphin",
+    "whale",
+    "shark",
+    "eagle",
+    "hawk",
+    "penguin",
+    "owl",
+    "butterfly",
+    "bee",
+    "ant",
+    "spider",
+    "crab",
+    "lobster",
+    "turtle",
+    "frog",
+    "hamster",
+    "parrot",
+    "peacock",
 }
 
 COLOR_WORDS = {
-    "red", "blue", "green", "yellow", "orange", "purple",
-    "pink", "brown", "black", "white", "gray", "grey",
-    "silver", "gold", "cyan", "magenta", "indigo", "violet",
-    "teal", "maroon", "navy", "olive", "lime", "coral",
-    "turquoise", "beige", "ivory", "lavender",
+    "red",
+    "blue",
+    "green",
+    "yellow",
+    "orange",
+    "purple",
+    "pink",
+    "brown",
+    "black",
+    "white",
+    "gray",
+    "grey",
+    "silver",
+    "gold",
+    "cyan",
+    "magenta",
+    "indigo",
+    "violet",
+    "teal",
+    "maroon",
+    "navy",
+    "olive",
+    "lime",
+    "coral",
+    "turquoise",
+    "beige",
+    "ivory",
+    "lavender",
 }
 
 PLACE_WORDS = {
-    "city", "town", "village", "country", "state", "capital",
-    "beach", "mountain", "lake", "river", "forest", "desert",
-    "island", "park", "garden", "museum", "temple", "church",
-    "mosque", "palace", "castle", "bridge", "tower", "monument",
-    "airport", "station", "hospital", "school", "university",
-    "mumbai", "delhi", "bangalore", "chennai", "kolkata",
-    "new york", "london", "paris", "tokyo", "dubai",
-    "sydney", "berlin", "rome", "madrid", "bangkok",
+    "city",
+    "town",
+    "village",
+    "country",
+    "state",
+    "capital",
+    "beach",
+    "mountain",
+    "lake",
+    "river",
+    "forest",
+    "desert",
+    "island",
+    "park",
+    "garden",
+    "museum",
+    "temple",
+    "church",
+    "mosque",
+    "palace",
+    "castle",
+    "bridge",
+    "tower",
+    "monument",
+    "airport",
+    "station",
+    "hospital",
+    "school",
+    "university",
+    "mumbai",
+    "delhi",
+    "bangalore",
+    "chennai",
+    "kolkata",
+    "new york",
+    "london",
+    "paris",
+    "tokyo",
+    "dubai",
+    "sydney",
+    "berlin",
+    "rome",
+    "madrid",
+    "bangkok",
 }
 
 JOB_WORDS = {
-    "job", "career", "work", "profession", "engineer", "doctor",
-    "teacher", "lawyer", "artist", "musician", "writer",
-    "developer", "designer", "manager", "ceo", "founder",
-    "scientist", "researcher", "nurse", "chef", "pilot",
-    "architect", "accountant", "journalist", "photographer",
-    "athlete", "actor", "professor", "banker", "consultant",
+    "job",
+    "career",
+    "work",
+    "profession",
+    "engineer",
+    "doctor",
+    "teacher",
+    "lawyer",
+    "artist",
+    "musician",
+    "writer",
+    "developer",
+    "designer",
+    "manager",
+    "ceo",
+    "founder",
+    "scientist",
+    "researcher",
+    "nurse",
+    "chef",
+    "pilot",
+    "architect",
+    "accountant",
+    "journalist",
+    "photographer",
+    "athlete",
+    "actor",
+    "professor",
+    "banker",
+    "consultant",
 }
 
 TECH_WORDS = {
-    "technology", "tech", "computer", "laptop", "phone",
-    "smartphone", "app", "software", "hardware", "ai",
-    "artificial intelligence", "machine learning", "robot",
-    "internet", "wifi", "bluetooth", "cloud", "data",
-    "coding", "programming", "python", "javascript",
-    "apple", "google", "microsoft", "amazon", "meta",
-    "openai", "chatgpt", "blockchain", "crypto", "bitcoin",
+    "technology",
+    "tech",
+    "computer",
+    "laptop",
+    "phone",
+    "smartphone",
+    "app",
+    "software",
+    "hardware",
+    "ai",
+    "artificial intelligence",
+    "machine learning",
+    "robot",
+    "internet",
+    "wifi",
+    "bluetooth",
+    "cloud",
+    "data",
+    "coding",
+    "programming",
+    "python",
+    "javascript",
+    "apple",
+    "google",
+    "microsoft",
+    "amazon",
+    "meta",
+    "openai",
+    "chatgpt",
+    "blockchain",
+    "crypto",
+    "bitcoin",
 }
 
 HEALTH_WORDS = {
-    "health", "fitness", "exercise", "workout", "gym",
-    "diet", "nutrition", "protein", "vitamin", "medicine",
-    "doctor", "hospital", "sleep", "meditation", "yoga",
-    "running", "jogging", "swimming", "cycling", "weight",
-    "calorie", "sugar", "blood", "heart", "brain",
-    "mental health", "stress", "anxiety", "depression",
+    "health",
+    "fitness",
+    "exercise",
+    "workout",
+    "gym",
+    "diet",
+    "nutrition",
+    "protein",
+    "vitamin",
+    "medicine",
+    "doctor",
+    "hospital",
+    "sleep",
+    "meditation",
+    "yoga",
+    "running",
+    "jogging",
+    "swimming",
+    "cycling",
+    "weight",
+    "calorie",
+    "sugar",
+    "blood",
+    "heart",
+    "brain",
+    "mental health",
+    "stress",
+    "anxiety",
+    "depression",
 }
 
 EDUCATION_WORDS = {
-    "education", "school", "college", "university", "study",
-    "learn", "learning", "exam", "test", "homework",
-    "assignment", "project", "thesis", "research", "degree",
-    "diploma", "certificate", "course", "class", "lecture",
-    "professor", "teacher", "student", "grade", "gpa",
-    "scholarship", "phd", "masters", "bachelors",
+    "education",
+    "school",
+    "college",
+    "university",
+    "study",
+    "learn",
+    "learning",
+    "exam",
+    "test",
+    "homework",
+    "assignment",
+    "project",
+    "thesis",
+    "research",
+    "degree",
+    "diploma",
+    "certificate",
+    "course",
+    "class",
+    "lecture",
+    "professor",
+    "teacher",
+    "student",
+    "grade",
+    "gpa",
+    "scholarship",
+    "phd",
+    "masters",
+    "bachelors",
 }
 
 FAMILY_WORDS = {
-    "family", "mom", "dad", "mother", "father", "brother",
-    "sister", "son", "daughter", "husband", "wife",
-    "grandma", "grandpa", "grandmother", "grandfather",
-    "uncle", "aunt", "cousin", "nephew", "niece",
-    "sibling", "parent", "child", "children", "baby",
-    "wedding", "anniversary", "reunion", "household",
+    "family",
+    "mom",
+    "dad",
+    "mother",
+    "father",
+    "brother",
+    "sister",
+    "son",
+    "daughter",
+    "husband",
+    "wife",
+    "grandma",
+    "grandpa",
+    "grandmother",
+    "grandfather",
+    "uncle",
+    "aunt",
+    "cousin",
+    "nephew",
+    "niece",
+    "sibling",
+    "parent",
+    "child",
+    "children",
+    "baby",
+    "wedding",
+    "anniversary",
+    "reunion",
+    "household",
 }
 
 MONEY_WORDS = {
-    "money", "cash", "rich", "poor", "salary", "income",
-    "expense", "savings", "invest", "investment", "stock",
-    "crypto", "bitcoin", "bank", "loan", "debt", "credit",
-    "debit", "tax", "budget", "profit", "loss", "billionaire",
-    "millionaire", "afford", "expensive", "cheap", "cost",
-    "price", "value", "worth", "dollar", "rupee", "euro",
+    "money",
+    "cash",
+    "rich",
+    "poor",
+    "salary",
+    "income",
+    "expense",
+    "savings",
+    "invest",
+    "investment",
+    "stock",
+    "crypto",
+    "bitcoin",
+    "bank",
+    "loan",
+    "debt",
+    "credit",
+    "debit",
+    "tax",
+    "budget",
+    "profit",
+    "loss",
+    "billionaire",
+    "millionaire",
+    "afford",
+    "expensive",
+    "cheap",
+    "cost",
+    "price",
+    "value",
+    "worth",
+    "dollar",
+    "rupee",
+    "euro",
 }
 
 NATURE_WORDS = {
-    "nature", "tree", "flower", "plant", "garden", "leaf",
-    "ocean", "sea", "mountain", "hill", "valley", "canyon",
-    "waterfall", "river", "lake", "pond", "stream",
-    "forest", "jungle", "wildlife", "animal", "bird",
-    "insect", "butterfly", "bee", "ant", "flower",
-    "seed", "soil", "earth", "ground", "rock", "stone",
+    "nature",
+    "tree",
+    "flower",
+    "plant",
+    "garden",
+    "leaf",
+    "ocean",
+    "sea",
+    "mountain",
+    "hill",
+    "valley",
+    "canyon",
+    "waterfall",
+    "river",
+    "lake",
+    "pond",
+    "stream",
+    "forest",
+    "jungle",
+    "wildlife",
+    "animal",
+    "bird",
+    "insect",
+    "butterfly",
+    "bee",
+    "ant",
+    "flower",
+    "seed",
+    "soil",
+    "earth",
+    "ground",
+    "rock",
+    "stone",
 }
 
 ART_WORDS = {
-    "art", "painting", "drawing", "sketch", "sculpture",
-    "photography", "dance", "dancing", "theater", "drama",
-    "poetry", "poem", "literature", "novel", "book",
-    "reading", "writing", "creative", "creativity", "design",
-    "fashion", "style", "beauty", "aesthetic", "gallery",
-    "museum", "exhibition", "masterpiece", "canvas",
+    "art",
+    "painting",
+    "drawing",
+    "sketch",
+    "sculpture",
+    "photography",
+    "dance",
+    "dancing",
+    "theater",
+    "drama",
+    "poetry",
+    "poem",
+    "literature",
+    "novel",
+    "book",
+    "reading",
+    "writing",
+    "creative",
+    "creativity",
+    "design",
+    "fashion",
+    "style",
+    "beauty",
+    "aesthetic",
+    "gallery",
+    "museum",
+    "exhibition",
+    "masterpiece",
+    "canvas",
 }
 
 AGREEMENT_WORDS = {
-    "yes", "yeah", "yep", "yup", "agree", "agreed",
-    "exactly", "right", "true", "correct", "absolutely",
-    "definitely", "totally", "completely", "100%", "sure",
-    "of course", "indeed", "precisely", "spot on",
+    "yes",
+    "yeah",
+    "yep",
+    "yup",
+    "agree",
+    "agreed",
+    "exactly",
+    "right",
+    "true",
+    "correct",
+    "absolutely",
+    "definitely",
+    "totally",
+    "completely",
+    "100%",
+    "sure",
+    "of course",
+    "indeed",
+    "precisely",
+    "spot on",
 }
 
 DISAGREEMENT_WORDS = {
-    "no", "nope", "nah", "disagree", "wrong", "actually",
-    "but", "however", "unfortunately", "not really",
-    "i don't think", "i disagree", "that's wrong",
-    "not at all", "i don't agree", "on the contrary",
+    "no",
+    "nope",
+    "nah",
+    "disagree",
+    "wrong",
+    "actually",
+    "but",
+    "however",
+    "unfortunately",
+    "not really",
+    "i don't think",
+    "i disagree",
+    "that's wrong",
+    "not at all",
+    "i don't agree",
+    "on the contrary",
 }
 
 OPINION_WORDS = {
-    "i think", "i believe", "in my opinion", "i feel",
-    "personally", "i guess", "i suppose", "i reckon",
-    "from my perspective", "in my view", "i'd say",
-    "the way i see it", "as far as i know",
+    "i think",
+    "i believe",
+    "in my opinion",
+    "i feel",
+    "personally",
+    "i guess",
+    "i suppose",
+    "i reckon",
+    "from my perspective",
+    "in my view",
+    "i'd say",
+    "the way i see it",
+    "as far as i know",
 }
 
 CELEBRITY_WORDS = {
-    "elon musk", "jeff bezos", "mark zuckerberg", "bill gates",
-    "taylor swift", "beyonce", "rihanna", "lady gaga",
-    "kanye west", "kim kardashian", "cristiano ronaldo",
-    "lionel messi", "neymar", "virat kohli", "sachin tendulkar",
-    "shah rukh khan", "salman khan", "tom cruise",
-    "morgan freeman", "scarlett johansson", "tom hanks",
-    "barack obama", "donald trump", "narendra modi",
+    "elon musk",
+    "jeff bezos",
+    "mark zuckerberg",
+    "bill gates",
+    "taylor swift",
+    "beyonce",
+    "rihanna",
+    "lady gaga",
+    "kanye west",
+    "kim kardashian",
+    "cristiano ronaldo",
+    "lionel messi",
+    "neymar",
+    "virat kohli",
+    "sachin tendulkar",
+    "shah rukh khan",
+    "salman khan",
+    "tom cruise",
+    "morgan freeman",
+    "scarlett johansson",
+    "tom hanks",
+    "barack obama",
+    "donald trump",
+    "narendra modi",
 }
 
 BRAND_WORDS = {
-    "apple", "samsung", "google", "microsoft", "amazon",
-    "nike", "adidas", "gucci", "prada", "zara",
-    "cocacola", "pepsi", "starbucks", "mcdonalds", "burger king",
-    "tesla", "bmw", "mercedes", "ferrari", "porsche",
-    "netflix", "spotify", "instagram", "tiktok", "youtube",
+    "apple",
+    "samsung",
+    "google",
+    "microsoft",
+    "amazon",
+    "nike",
+    "adidas",
+    "gucci",
+    "prada",
+    "zara",
+    "cocacola",
+    "pepsi",
+    "starbucks",
+    "mcdonalds",
+    "burger king",
+    "tesla",
+    "bmw",
+    "mercedes",
+    "ferrari",
+    "porsche",
+    "netflix",
+    "spotify",
+    "instagram",
+    "tiktok",
+    "youtube",
 }
 
 DAY_WORDS = {
-    "monday", "tuesday", "wednesday", "thursday", "friday",
-    "saturday", "sunday",
+    "monday",
+    "tuesday",
+    "wednesday",
+    "thursday",
+    "friday",
+    "saturday",
+    "sunday",
 }
 
 SEASON_WORDS = {
-    "spring", "summer", "autumn", "fall", "winter",
-    "monsoon", "rainy season", "dry season", "holiday season",
+    "spring",
+    "summer",
+    "autumn",
+    "fall",
+    "winter",
+    "monsoon",
+    "rainy season",
+    "dry season",
+    "holiday season",
 }
 
 FEAR_WORDS = {
-    "fear", "afraid", "scared", "terrified", "horror",
-    "nightmare", "phobia", "anxiety", "panic", "creepy",
-    "haunted", "ghost", "ghosts", "zombie", "monster",
-    "serial killer", "dark", "darkness", "alone", "lonely",
+    "fear",
+    "afraid",
+    "scared",
+    "terrified",
+    "horror",
+    "nightmare",
+    "phobia",
+    "anxiety",
+    "panic",
+    "creepy",
+    "haunted",
+    "ghost",
+    "ghosts",
+    "zombie",
+    "monster",
+    "serial killer",
+    "dark",
+    "darkness",
+    "alone",
+    "lonely",
 }
 
 DREAM_WORDS = {
-    "dream", "dreams", "ambition", "goal", "aspiration",
-    "future", "someday", "one day", "hope", "wish",
-    "fantasy", "imagine", "vision", "plan", "plan to",
-    "want to be", "grow up", "when i grow up",
+    "dream",
+    "dreams",
+    "ambition",
+    "goal",
+    "aspiration",
+    "future",
+    "someday",
+    "one day",
+    "hope",
+    "wish",
+    "fantasy",
+    "imagine",
+    "vision",
+    "plan",
+    "plan to",
+    "want to be",
+    "grow up",
+    "when i grow up",
 }
 
 CHILDHOOD_WORDS = {
-    "childhood", "kid", "kids", "growing up", "young",
-    "child", "children", "school days", "playground",
-    "cartoon", "cartoons", "toy", "toys", "game boy",
-    "playstation", "xbox", " recess", "summer vacation",
-    "homework", "backpack", "lunchbox",
+    "childhood",
+    "kid",
+    "kids",
+    "growing up",
+    "young",
+    "child",
+    "children",
+    "school days",
+    "playground",
+    "cartoon",
+    "cartoons",
+    "toy",
+    "toys",
+    "game boy",
+    "playstation",
+    "xbox",
+    " recess",
+    "summer vacation",
+    "homework",
+    "backpack",
+    "lunchbox",
 }
 
 FUTURE_WORDS = {
-    "future", "tomorrow", "next year", "next week",
-    "someday", "one day", "eventually", "plans",
-    "going to", "will", "shall", "promise",
-    "prediction", "forecast", "expect", "anticipate",
+    "future",
+    "tomorrow",
+    "next year",
+    "next week",
+    "someday",
+    "one day",
+    "eventually",
+    "plans",
+    "going to",
+    "will",
+    "shall",
+    "promise",
+    "prediction",
+    "forecast",
+    "expect",
+    "anticipate",
 }
 
 PAST_WORDS = {
-    "remember", "used to", "back in the day", "before",
-    "ago", "past", "history", "ancient", "old days",
-    "those days", "in those times", "previously",
-    "formerly", "earlier", "once upon a time",
+    "remember",
+    "used to",
+    "back in the day",
+    "before",
+    "ago",
+    "past",
+    "history",
+    "ancient",
+    "old days",
+    "those days",
+    "in those times",
+    "previously",
+    "formerly",
+    "earlier",
+    "once upon a time",
 }
 
 RELATIONSHIP_WORDS = {
-    "relationship", "dating", "couple", "boyfriend",
-    "girlfriend", "partner", "crush", "love", "romance",
-    "breakup", "marriage", "wedding", "engaged",
-    "single", "committed", "flirty", "flirt", "attract",
+    "relationship",
+    "dating",
+    "couple",
+    "boyfriend",
+    "girlfriend",
+    "partner",
+    "crush",
+    "love",
+    "romance",
+    "breakup",
+    "marriage",
+    "wedding",
+    "engaged",
+    "single",
+    "committed",
+    "flirty",
+    "flirt",
+    "attract",
 }
 
 HUMOR_WORDS = {
-    "lol", "lmao", "rofl", "haha", "hehe", "funny",
-    "joke", "jokes", "hilarious", "comedy", "comedian",
-    "laugh", "laughing", "meme", "memes", "pun",
-    "witty", "sarcastic", "sarcasm", "tongue",
+    "lol",
+    "lmao",
+    "rofl",
+    "haha",
+    "hehe",
+    "funny",
+    "joke",
+    "jokes",
+    "hilarious",
+    "comedy",
+    "comedian",
+    "laugh",
+    "laughing",
+    "meme",
+    "memes",
+    "pun",
+    "witty",
+    "sarcastic",
+    "sarcasm",
+    "tongue",
 }
 
 EMOJI_PATTERN = re.compile(
     "["
-    "\U0001F600-\U0001F64F"
-    "\U0001F300-\U0001F5FF"
-    "\U0001F680-\U0001F6FF"
-    "\U0001F1E0-\U0001F1FF"
-    "\U00002702-\U000027B0"
-    "\U000024C2-\U0001F251"
+    "\U0001f600-\U0001f64f"
+    "\U0001f300-\U0001f5ff"
+    "\U0001f680-\U0001f6ff"
+    "\U0001f1e0-\U0001f1ff"
+    "\U00002702-\U000027b0"
+    "\U000024c2-\U0001f251"
     "\U0001f926-\U0001f937"
     "\U00010000-\U0010ffff"
     "\u200d"
     "\u2640-\u2642"
     "\ufe0f"
-    "\u2600-\u2B55"
+    "\u2600-\u2b55"
     "\u23cf"
     "\u23e9"
     "\u231a"
@@ -352,9 +1018,18 @@ EMOJI_PATTERN = re.compile(
 ALL_CAPS_PATTERN = re.compile(r"\b[A-Z]{2,}\b")
 
 EMPHASIS_WORDS = {
-    "definitely", "absolutely", "certainly", "obviously",
-    "clearly", "undoubtedly", "surely", "honestly",
-    "seriously", "literally", "actually", "basically",
+    "definitely",
+    "absolutely",
+    "certainly",
+    "obviously",
+    "clearly",
+    "undoubtedly",
+    "surely",
+    "honestly",
+    "seriously",
+    "literally",
+    "actually",
+    "basically",
 }
 
 MISSION_TEMPLATES = [
@@ -677,9 +1352,7 @@ async def generate_missions(
     if existing_missions:
         return existing_missions
     if mission_count > len(MISSION_TEMPLATES):
-        raise ValueError(
-            "Mission count exceeds available mission templates"
-        )
+        raise ValueError("Mission count exceeds available mission templates")
 
     selected_templates = random.sample(
         MISSION_TEMPLATES,
@@ -737,6 +1410,7 @@ async def check_mission_completion(
 
     # Record mission completed event for replay
     from app.events import repository as event_repository
+
     await event_repository.create_event(
         db=db,
         game_id=mission.game_id,
@@ -819,6 +1493,7 @@ async def increment_mission_progress(
 
         # Record mission completed event for replay
         from app.events import repository as event_repository
+
         await event_repository.create_event(
             db=db,
             game_id=game_id,
@@ -888,6 +1563,7 @@ async def evaluate_message_missions(
 
             # Record mission completed event for replay
             from app.events import repository as event_repository
+
             await event_repository.create_event(
                 db=db,
                 game_id=game_id,
@@ -935,10 +1611,7 @@ def mission_matches_message(
         return sender_user_id == coordinator_user_id
 
     if mission_type == "ask_questions":
-        return (
-            sender_user_id == coordinator_user_id
-            and "?" in content
-        )
+        return sender_user_id == coordinator_user_id and "?" in content
 
     if mission_type == "country_mentions":
         return (
@@ -953,30 +1626,20 @@ def mission_matches_message(
         )
 
     if mission_type == "use_emphasis":
-        return (
-            sender_user_id == coordinator_user_id
-            and (
-                len(ALL_CAPS_PATTERN.findall(content)) > 0
-                or _word_set_match(EMPHASIS_WORDS, content)
-            )
+        return sender_user_id == coordinator_user_id and (
+            len(ALL_CAPS_PATTERN.findall(content)) > 0
+            or _word_set_match(EMPHASIS_WORDS, content)
         )
 
     if mission_type == "long_messages":
-        return (
-            sender_user_id == coordinator_user_id
-            and len(content) > 100
-        )
+        return sender_user_id == coordinator_user_id and len(content) > 100
 
     if mission_type == "short_messages":
-        return (
-            sender_user_id == coordinator_user_id
-            and len(content) < 20
-        )
+        return sender_user_id == coordinator_user_id and len(content) < 20
 
     if mission_type == "use_humor":
-        return (
-            sender_user_id == coordinator_user_id
-            and _word_set_match(HUMOR_WORDS, content)
+        return sender_user_id == coordinator_user_id and _word_set_match(
+            HUMOR_WORDS, content
         )
 
     if mission_type == "be_active":
@@ -989,213 +1652,176 @@ def mission_matches_message(
         )
 
     if mission_type == "mention_food":
-        return (
-            sender_user_id != coordinator_user_id
-            and _word_set_match(FOOD_WORDS, content)
+        return sender_user_id != coordinator_user_id and _word_set_match(
+            FOOD_WORDS, content
         )
 
     if mission_type == "mention_movies":
-        return (
-            sender_user_id != coordinator_user_id
-            and _word_set_match(MOVIE_WORDS, content)
+        return sender_user_id != coordinator_user_id and _word_set_match(
+            MOVIE_WORDS, content
         )
 
     if mission_type == "mention_music":
-        return (
-            sender_user_id != coordinator_user_id
-            and _word_set_match(MUSIC_WORDS, content)
+        return sender_user_id != coordinator_user_id and _word_set_match(
+            MUSIC_WORDS, content
         )
 
     if mission_type == "mention_sports":
-        return (
-            sender_user_id != coordinator_user_id
-            and _word_set_match(SPORTS_WORDS, content)
+        return sender_user_id != coordinator_user_id and _word_set_match(
+            SPORTS_WORDS, content
         )
 
     if mission_type == "mention_emotions":
-        return (
-            sender_user_id != coordinator_user_id
-            and _word_set_match(EMOTION_WORDS, content)
+        return sender_user_id != coordinator_user_id and _word_set_match(
+            EMOTION_WORDS, content
         )
 
     if mission_type == "mention_time":
-        return (
-            sender_user_id != coordinator_user_id
-            and _word_set_match(TIME_WORDS, content)
+        return sender_user_id != coordinator_user_id and _word_set_match(
+            TIME_WORDS, content
         )
 
     if mission_type == "mention_weather":
-        return (
-            sender_user_id != coordinator_user_id
-            and _word_set_match(WEATHER_WORDS, content)
+        return sender_user_id != coordinator_user_id and _word_set_match(
+            WEATHER_WORDS, content
         )
 
     if mission_type == "mention_animals":
-        return (
-            sender_user_id != coordinator_user_id
-            and _word_set_match(ANIMAL_WORDS, content)
+        return sender_user_id != coordinator_user_id and _word_set_match(
+            ANIMAL_WORDS, content
         )
 
     if mission_type == "mention_colors":
-        return (
-            sender_user_id != coordinator_user_id
-            and _word_set_match(COLOR_WORDS, content)
+        return sender_user_id != coordinator_user_id and _word_set_match(
+            COLOR_WORDS, content
         )
 
     if mission_type == "mention_places":
-        return (
-            sender_user_id != coordinator_user_id
-            and _word_set_match(PLACE_WORDS, content)
+        return sender_user_id != coordinator_user_id and _word_set_match(
+            PLACE_WORDS, content
         )
 
     if mission_type == "mention_jobs":
-        return (
-            sender_user_id != coordinator_user_id
-            and _word_set_match(JOB_WORDS, content)
+        return sender_user_id != coordinator_user_id and _word_set_match(
+            JOB_WORDS, content
         )
 
     if mission_type == "mention_technology":
-        return (
-            sender_user_id != coordinator_user_id
-            and _word_set_match(TECH_WORDS, content)
+        return sender_user_id != coordinator_user_id and _word_set_match(
+            TECH_WORDS, content
         )
 
     if mission_type == "mention_health":
-        return (
-            sender_user_id != coordinator_user_id
-            and _word_set_match(HEALTH_WORDS, content)
+        return sender_user_id != coordinator_user_id and _word_set_match(
+            HEALTH_WORDS, content
         )
 
     if mission_type == "mention_education":
-        return (
-            sender_user_id != coordinator_user_id
-            and _word_set_match(EDUCATION_WORDS, content)
+        return sender_user_id != coordinator_user_id and _word_set_match(
+            EDUCATION_WORDS, content
         )
 
     if mission_type == "mention_family":
-        return (
-            sender_user_id != coordinator_user_id
-            and _word_set_match(FAMILY_WORDS, content)
+        return sender_user_id != coordinator_user_id and _word_set_match(
+            FAMILY_WORDS, content
         )
 
     if mission_type == "mention_money":
-        return (
-            sender_user_id != coordinator_user_id
-            and _word_set_match(MONEY_WORDS, content)
+        return sender_user_id != coordinator_user_id and _word_set_match(
+            MONEY_WORDS, content
         )
 
     if mission_type == "mention_nature":
-        return (
-            sender_user_id != coordinator_user_id
-            and _word_set_match(NATURE_WORDS, content)
+        return sender_user_id != coordinator_user_id and _word_set_match(
+            NATURE_WORDS, content
         )
 
     if mission_type == "mention_art":
-        return (
-            sender_user_id != coordinator_user_id
-            and _word_set_match(ART_WORDS, content)
+        return sender_user_id != coordinator_user_id and _word_set_match(
+            ART_WORDS, content
         )
 
     if mission_type == "get_agreements":
-        return (
-            sender_user_id != coordinator_user_id
-            and _word_set_match(AGREEMENT_WORDS, content)
+        return sender_user_id != coordinator_user_id and _word_set_match(
+            AGREEMENT_WORDS, content
         )
 
     if mission_type == "get_disagreements":
-        return (
-            sender_user_id != coordinator_user_id
-            and _word_set_match(DISAGREEMENT_WORDS, content)
+        return sender_user_id != coordinator_user_id and _word_set_match(
+            DISAGREEMENT_WORDS, content
         )
 
     if mission_type == "get_questions_back":
-        return (
-            sender_user_id != coordinator_user_id
-            and "?" in content
-        )
+        return sender_user_id != coordinator_user_id and "?" in content
 
     if mission_type == "mention_opinions":
-        return (
-            sender_user_id != coordinator_user_id
-            and _word_set_match(OPINION_WORDS, content)
+        return sender_user_id != coordinator_user_id and _word_set_match(
+            OPINION_WORDS, content
         )
 
     if mission_type == "mention_celebrities":
-        return (
-            sender_user_id != coordinator_user_id
-            and _word_set_match(CELEBRITY_WORDS, content)
+        return sender_user_id != coordinator_user_id and _word_set_match(
+            CELEBRITY_WORDS, content
         )
 
     if mission_type == "mention_brands":
-        return (
-            sender_user_id != coordinator_user_id
-            and _word_set_match(BRAND_WORDS, content)
+        return sender_user_id != coordinator_user_id and _word_set_match(
+            BRAND_WORDS, content
         )
 
     if mission_type == "mention_days":
-        return (
-            sender_user_id != coordinator_user_id
-            and _word_set_match(DAY_WORDS, content)
+        return sender_user_id != coordinator_user_id and _word_set_match(
+            DAY_WORDS, content
         )
 
     if mission_type == "mention_seasons":
-        return (
-            sender_user_id != coordinator_user_id
-            and _word_set_match(SEASON_WORDS, content)
+        return sender_user_id != coordinator_user_id and _word_set_match(
+            SEASON_WORDS, content
         )
 
     if mission_type == "mention_fears":
-        return (
-            sender_user_id != coordinator_user_id
-            and _word_set_match(FEAR_WORDS, content)
+        return sender_user_id != coordinator_user_id and _word_set_match(
+            FEAR_WORDS, content
         )
 
     if mission_type == "mention_dreams":
-        return (
-            sender_user_id != coordinator_user_id
-            and _word_set_match(DREAM_WORDS, content)
+        return sender_user_id != coordinator_user_id and _word_set_match(
+            DREAM_WORDS, content
         )
 
     if mission_type == "mention_childhood":
-        return (
-            sender_user_id != coordinator_user_id
-            and _word_set_match(CHILDHOOD_WORDS, content)
+        return sender_user_id != coordinator_user_id and _word_set_match(
+            CHILDHOOD_WORDS, content
         )
 
     if mission_type == "mention_future":
-        return (
-            sender_user_id != coordinator_user_id
-            and _word_set_match(FUTURE_WORDS, content)
+        return sender_user_id != coordinator_user_id and _word_set_match(
+            FUTURE_WORDS, content
         )
 
     if mission_type == "mention_past":
-        return (
-            sender_user_id != coordinator_user_id
-            and _word_set_match(PAST_WORDS, content)
+        return sender_user_id != coordinator_user_id and _word_set_match(
+            PAST_WORDS, content
         )
 
     if mission_type == "mention_relationships":
-        return (
-            sender_user_id != coordinator_user_id
-            and _word_set_match(RELATIONSHIP_WORDS, content)
+        return sender_user_id != coordinator_user_id and _word_set_match(
+            RELATIONSHIP_WORDS, content
         )
 
     if mission_type == "mention_food_self":
-        return (
-            sender_user_id == coordinator_user_id
-            and _word_set_match(FOOD_WORDS, content)
+        return sender_user_id == coordinator_user_id and _word_set_match(
+            FOOD_WORDS, content
         )
 
     if mission_type == "mention_travel_self":
-        return (
-            sender_user_id == coordinator_user_id
-            and _word_set_match(PLACE_WORDS, content)
+        return sender_user_id == coordinator_user_id and _word_set_match(
+            PLACE_WORDS, content
         )
 
     if mission_type == "mention_emotions_self":
-        return (
-            sender_user_id == coordinator_user_id
-            and _word_set_match(EMOTION_WORDS, content)
+        return sender_user_id == coordinator_user_id and _word_set_match(
+            EMOTION_WORDS, content
         )
 
     if mission_type == "ask_controversial":
@@ -1204,70 +1830,106 @@ def mission_matches_message(
             and "?" in content
             and _word_set_match(
                 {
-                    "should", "would you", "do you think",
-                    "is it okay", "is it wrong", "is it right",
-                    "debate", "unpopular opinion", "hot take",
-                    "controversial", "most overrated", "most underrated",
-                    "worst", "best", "overrated", "underrated",
+                    "should",
+                    "would you",
+                    "do you think",
+                    "is it okay",
+                    "is it wrong",
+                    "is it right",
+                    "debate",
+                    "unpopular opinion",
+                    "hot take",
+                    "controversial",
+                    "most overrated",
+                    "most underrated",
+                    "worst",
+                    "best",
+                    "overrated",
+                    "underrated",
                 },
                 content,
             )
         )
 
     if mission_type == "get_reactions":
-        return (
-            sender_user_id != coordinator_user_id
-            and _word_set_match(
-                {
-                    "wow", "omg", "no way", "seriously",
-                    "shut up", "really", "are you serious",
-                    "that's crazy", "insane", "unbelievable",
-                    "what", "wait", "hold on",
-                },
-                content,
-            )
+        return sender_user_id != coordinator_user_id and _word_set_match(
+            {
+                "wow",
+                "omg",
+                "no way",
+                "seriously",
+                "shut up",
+                "really",
+                "are you serious",
+                "that's crazy",
+                "insane",
+                "unbelievable",
+                "what",
+                "wait",
+                "hold on",
+            },
+            content,
         )
 
     if mission_type == "change_topic":
-        return (
-            sender_user_id == coordinator_user_id
-            and _word_set_match(
-                {
-                    "but", "anyway", "speaking of", "that reminds me",
-                    "on a different note", "unrelated", " shifting gears",
-                    "let's talk about", "what about", "have you considered",
-                    "moving on", "changing the subject",
-                },
-                content,
-            )
+        return sender_user_id == coordinator_user_id and _word_set_match(
+            {
+                "but",
+                "anyway",
+                "speaking of",
+                "that reminds me",
+                "on a different note",
+                "unrelated",
+                " shifting gears",
+                "let's talk about",
+                "what about",
+                "have you considered",
+                "moving on",
+                "changing the subject",
+            },
+            content,
         )
 
     if mission_type == "use_sarcasm":
-        return (
-            sender_user_id == coordinator_user_id
-            and _word_set_match(
-                {
-                    "oh really", "wow shocker", "what a surprise",
-                    "totally", "obviously", "clearly",
-                    "as if", "yeah right", "sure thing",
-                    "oh great", "wonderful", "fantastic",
-                },
-                content,
-            )
+        return sender_user_id == coordinator_user_id and _word_set_match(
+            {
+                "oh really",
+                "wow shocker",
+                "what a surprise",
+                "totally",
+                "obviously",
+                "clearly",
+                "as if",
+                "yeah right",
+                "sure thing",
+                "oh great",
+                "wonderful",
+                "fantastic",
+            },
+            content,
         )
 
     if mission_type == "mention_beliefs":
-        return (
-            sender_user_id != coordinator_user_id
-            and _word_set_match(
-                {
-                    "believe", "faith", "religion", "spiritual",
-                    "values", "morals", "principles", "philosophy",
-                    "meaning of life", "purpose", "destiny", "fate",
-                    "karma", "god", "universe", "consciousness",
-                },
-                content,
-            )
+        return sender_user_id != coordinator_user_id and _word_set_match(
+            {
+                "believe",
+                "faith",
+                "religion",
+                "spiritual",
+                "values",
+                "morals",
+                "principles",
+                "philosophy",
+                "meaning of life",
+                "purpose",
+                "destiny",
+                "fate",
+                "karma",
+                "god",
+                "universe",
+                "consciousness",
+            },
+            content,
         )
 
     return False

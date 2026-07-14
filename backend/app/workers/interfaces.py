@@ -38,6 +38,7 @@ class JobPriority(Enum):
 @dataclass
 class JobResult:
     """Result of a background job execution."""
+
     job_id: str
     status: JobStatus
     result: Any = None
@@ -49,6 +50,7 @@ class JobResult:
 @dataclass
 class JobDefinition:
     """Defines a background job to be queued."""
+
     job_type: str
     payload: dict
     priority: JobPriority = JobPriority.NORMAL

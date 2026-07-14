@@ -7,10 +7,11 @@ from sqlalchemy import (
     JSON,
     String,
     UniqueConstraint,
-    Boolean
+    Boolean,
 )
 
 from app.db.base import Base
+
 
 class Room(Base):
     __tablename__ = "rooms"
@@ -53,6 +54,7 @@ class Room(Base):
         server_default=func.now(),
         nullable=False,
     )
+
 
 class RoomPlayer(Base):
     __tablename__ = "room_players"

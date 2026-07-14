@@ -65,18 +65,13 @@ async def handle_message(
     # --------------------------------------------------
 
     if event_type == "PLAYER_READY":
-        ready = message.get("payload", {}).get(
-            "ready"
-        )
+        ready = message.get("payload", {}).get("ready")
 
         if not isinstance(ready, bool):
             await websocket.send_json(
                 {
                     "type": "ERROR",
-                    "message": (
-                        "PLAYER_READY requires "
-                        "payload.ready as boolean"
-                    ),
+                    "message": ("PLAYER_READY requires payload.ready as boolean"),
                 }
             )
             return
@@ -94,14 +89,13 @@ async def handle_message(
                 }
             )
             return
-        
+
         if room.status != "waiting":
             await websocket.send_json(
                 {
                     "type": "ERROR",
                     "message": (
-                        "Ready status can only be changed "
-                        "while the room is waiting"
+                        "Ready status can only be changed while the room is waiting"
                     ),
                 }
             )
@@ -132,10 +126,7 @@ async def handle_message(
             await websocket.send_json(
                 {
                     "type": "ERROR",
-                    "message": (
-                        "SEND_MESSAGE requires "
-                        "non-empty content"
-                    ),
+                    "message": ("SEND_MESSAGE requires non-empty content"),
                 }
             )
             return
@@ -193,14 +184,12 @@ async def handle_message(
             # Create chat message
             # ------------------------------------------
 
-            chat_message = (
-                await chat_repository.create_message(
-                    db,
-                    room_id=room.id,
-                    user_id=user_id,
-                    content=content.strip(),
-                    reply_to_message_id=reply_to_message_id,
-                )
+            chat_message = await chat_repository.create_message(
+                db,
+                room_id=room.id,
+                user_id=user_id,
+                content=content.strip(),
+                reply_to_message_id=reply_to_message_id,
             )
 
             # ------------------------------------------
@@ -247,15 +236,14 @@ async def handle_message(
                     reply_to_role = None
                     if has_reply:
                         replied_msg = await chat_repository.get_message_by_id(
-                            db, reply_to_message_id,
+                            db,
+                            reply_to_message_id,
                         )
                         if replied_msg is not None:
-                            replied_player = (
-                                await game_repository.get_game_player(
-                                    db,
-                                    game_id=game.id,
-                                    user_id=replied_msg.user_id,
-                                )
+                            replied_player = await game_repository.get_game_player(
+                                db,
+                                game_id=game.id,
+                                user_id=replied_msg.user_id,
                             )
                             if replied_player is not None:
                                 reply_to_role = replied_player.role
@@ -281,14 +269,12 @@ async def handle_message(
                 and game.status == "active"
                 and game.phase == GamePhase.INTERACTION.value
             ):
-                updated_missions = (
-                    await evaluate_message_missions(
-                        db=db,
-                        game_id=game.id,
-                        sender_user_id=user_id,
-                        content=content.strip(),
-                        round_number=game.round_number,
-                    )
+                updated_missions = await evaluate_message_missions(
+                    db=db,
+                    game_id=game.id,
+                    sender_user_id=user_id,
+                    content=content.strip(),
+                    round_number=game.round_number,
                 )
 
                 for mission in updated_missions:
@@ -319,10 +305,7 @@ async def handle_message(
             # Check victory condition
             # ------------------------------------------
 
-            if (
-                updated_missions
-                and game is not None
-            ):
+            if updated_missions and game is not None:
                 win_result = await check_win_condition(
                     db=db,
                     game_id=game.id,
@@ -353,10 +336,8 @@ async def handle_message(
                     await db.refresh(game)
                     await db.refresh(room)
 
-                    game_players = (
-                        await game_repository.get_game_players(
-                            db, game_id=game.id
-                        )
+                    game_players = await game_repository.get_game_players(
+                        db, game_id=game.id
                     )
 
         except Exception:
@@ -382,12 +363,8 @@ async def handle_message(
                     "type": "MISSION_PROGRESS",
                     "mission": {
                         "id": updated_mission.id,
-                        "current_value": (
-                            updated_mission.current_value
-                        ),
-                        "target_value": (
-                            updated_mission.target_value
-                        ),
+                        "current_value": (updated_mission.current_value),
+                        "target_value": (updated_mission.target_value),
                         "status": updated_mission.status,
                     },
                 },
@@ -402,11 +379,7 @@ async def handle_message(
             user_id,
         )
 
-        username = (
-            sender.username
-            if sender
-            else str(user_id)
-        )
+        username = sender.username if sender else str(user_id)
 
         await manager.broadcast_to_room(
             room_code=room_code,
@@ -418,9 +391,7 @@ async def handle_message(
                     "username": username,
                     "content": content.strip(),
                     "reply_to_message_id": chat_message.reply_to_message_id,
-                    "created_at": (
-                        chat_message.created_at.isoformat()
-                    ),
+                    "created_at": (chat_message.created_at.isoformat()),
                 },
             },
         )
@@ -429,16 +400,8 @@ async def handle_message(
         # GAME OVER EVENT
         # --------------------------------------------------
 
-        if (
-            win_result is not None
-            and win_result.game_over
-            and game is not None
-        ):
-            game_players = (
-                await game_repository.get_game_players(
-                    db, game_id=game.id
-                )
-            )
+        if win_result is not None and win_result.game_over and game is not None:
+            game_players = await game_repository.get_game_players(db, game_id=game.id)
 
             await manager.broadcast_to_room(
                 room_code=room_code,
@@ -457,9 +420,7 @@ async def handle_message(
                             "user_id": gp.user_id,
                             "role": gp.role,
                             "score": gp.score,
-                            "username": (
-                                await get_by_id(db, gp.user_id)
-                            ).username,
+                            "username": (await get_by_id(db, gp.user_id)).username,
                         }
                         for gp in game_players
                     ],
@@ -469,6 +430,7 @@ async def handle_message(
             # Train ML model after game over
             try:
                 from app.ml.service import train_model
+
                 ml_result = await train_model(db=db)
                 await manager.broadcast_to_room(
                     room_code=room_code,
@@ -488,18 +450,13 @@ async def handle_message(
     # --------------------------------------------------
 
     if event_type == "CAST_VOTE":
-        target_user_id = message.get("payload", {}).get(
-            "target_user_id"
-        )
+        target_user_id = message.get("payload", {}).get("target_user_id")
 
         if not isinstance(target_user_id, int):
             await websocket.send_json(
                 {
                     "type": "ERROR",
-                    "message": (
-                        "CAST_VOTE requires "
-                        "payload.target_user_id as integer"
-                    ),
+                    "message": ("CAST_VOTE requires payload.target_user_id as integer"),
                 }
             )
             return
@@ -590,26 +547,25 @@ async def handle_message(
         )
 
         # Check if all players have voted - auto advance to result
-        game_players = await game_repository.get_game_players(
-            db, game_id=game.id
-        )
+        game_players = await game_repository.get_game_players(db, game_id=game.id)
         total_players = len(game_players)
-        
+
         votes = await vote_repository.get_votes_for_round(
             db=db,
             game_id=game.id,
             round_number=game.round_number,
         )
         unique_voters = len(set(v.voter_user_id for v in votes))
-        
+
         if unique_voters >= total_players:
             # All players voted - auto advance to result
             game.phase = GamePhase.RESULT.value
             game.phase_started_at = None
-            
+
             from app.game_engine.timer import cancel_timer
+
             cancel_timer(game.id)
-            
+
             await event_repository.create_event(
                 db=db,
                 game_id=game.id,
@@ -622,16 +578,16 @@ async def handle_message(
                     "reason": "all_players_voted",
                 },
             )
-            
+
             await db.commit()
-            
+
             # Get vote results with coordinator identification check
             vote_results = await voting_service.tally_votes(
                 db=db,
                 game_id=game.id,
                 round_number=game.round_number,
             )
-            
+
             await manager.broadcast_to_room(
                 room_code=room_code,
                 message={
@@ -639,7 +595,7 @@ async def handle_message(
                     "results": vote_results.model_dump(),
                 },
             )
-            
+
             await manager.broadcast_to_room(
                 room_code=room_code,
                 message={
@@ -651,7 +607,7 @@ async def handle_message(
                     },
                 },
             )
-            
+
             # Check win condition based on vote result
             win_result = await check_win_condition(
                 db=db,
@@ -663,10 +619,8 @@ async def handle_message(
                     game_id=game.id,
                 )
 
-                game_players = (
-                    await game_repository.get_game_players(
-                        db, game_id=game.id
-                    )
+                game_players = await game_repository.get_game_players(
+                    db, game_id=game.id
                 )
                 game.status = "completed"
                 game.phase = GamePhase.GAME_OVER.value
@@ -689,26 +643,25 @@ async def handle_message(
                                 "user_id": gp.user_id,
                                 "role": gp.role,
                                 "score": gp.score,
-                                "username": (
-                                    await get_by_id(db, gp.user_id)
-                                ).username,
+                                "username": (await get_by_id(db, gp.user_id)).username,
                             }
                             for gp in game_players
                         ],
                     },
                 )
                 return
-            
+
             # Start timer for result phase
             from app.game_engine.timer import start_phase_timer
             from app.db.session import SessionLocal
+
             start_phase_timer(
                 db_factory=SessionLocal,
                 game_id=game.id,
                 room_code=room_code,
                 phase=GamePhase.RESULT.value,
             )
-        
+
         return
 
     # --------------------------------------------------
@@ -773,7 +726,9 @@ async def handle_message(
             game = await game_repository.get_by_room_id(db, room_id=room.id)
             if game is not None and game.status == "active":
                 game_player = await game_repository.get_game_player(
-                    db, game_id=game.id, user_id=user_id,
+                    db,
+                    game_id=game.id,
+                    user_id=user_id,
                 )
                 if game_player is not None:
                     await training_repository.create_training_message(
@@ -915,36 +870,46 @@ async def handle_message(
         # 1. Load game and validate phase
         room = await room_repository.get_by_code(db, room_code)
         if room is None:
-            await websocket.send_json(
-                {"type": "ERROR", "message": "Room not found"}
-            )
+            await websocket.send_json({"type": "ERROR", "message": "Room not found"})
             return
 
         game = await game_repository.get_active_game(db, room_id=room.id)
         if game is None:
             await websocket.send_json(
-                {"type": "SIGNAL_AI_RESULT", "status": "error", "message": "No active game"}
+                {
+                    "type": "SIGNAL_AI_RESULT",
+                    "status": "error",
+                    "message": "No active game",
+                }
             )
             return
 
         # Only allow during discussion phase
         if game.phase != GamePhase.DISCUSSION.value:
-            await websocket.send_json({
-                "type": "SIGNAL_AI_RESULT",
-                "status": "error",
-                "message": "Signal AI can only be used during the Discussion phase",
-                "scans_used": 0,
-                "scans_remaining": SignalAIConfig.MAX_SCANS_PER_MATCH,
-            })
+            await websocket.send_json(
+                {
+                    "type": "SIGNAL_AI_RESULT",
+                    "status": "error",
+                    "message": "Signal AI can only be used during the Discussion phase",
+                    "scans_used": 0,
+                    "scans_remaining": SignalAIConfig.MAX_SCANS_PER_MATCH,
+                }
+            )
             return
 
         # 2. Verify caller is the detective
         game_player = await game_repository.get_game_player(
-            db, game_id=game.id, user_id=user_id,
+            db,
+            game_id=game.id,
+            user_id=user_id,
         )
         if game_player is None or game_player.role != "detective":
             await websocket.send_json(
-                {"type": "SIGNAL_AI_RESULT", "status": "error", "message": "Only the Detective can use Signal AI"}
+                {
+                    "type": "SIGNAL_AI_RESULT",
+                    "status": "error",
+                    "message": "Only the Detective can use Signal AI",
+                }
             )
             return
 
@@ -956,26 +921,30 @@ async def handle_message(
         scans_used = int(scans_used_raw) if scans_used_raw else 0
 
         if scans_used >= SignalAIConfig.MAX_SCANS_PER_MATCH:
-            await websocket.send_json({
-                "type": "SIGNAL_AI_RESULT",
-                "status": "cooldown",
-                "message": f"Maximum scans reached ({SignalAIConfig.MAX_SCANS_PER_MATCH} per match)",
-                "scans_used": scans_used,
-                "scans_remaining": 0,
-            })
+            await websocket.send_json(
+                {
+                    "type": "SIGNAL_AI_RESULT",
+                    "status": "cooldown",
+                    "message": f"Maximum scans reached ({SignalAIConfig.MAX_SCANS_PER_MATCH} per match)",
+                    "scans_used": scans_used,
+                    "scans_remaining": 0,
+                }
+            )
             return
 
         # Check round cooldown
         last_round_raw = await redis_client.get(round_cooldown_key)
         last_round = int(last_round_raw) if last_round_raw else 0
         if last_round == game.round_number:
-            await websocket.send_json({
-                "type": "SIGNAL_AI_RESULT",
-                "status": "cooldown",
-                "message": "One scan per round. Wait for the next round.",
-                "scans_used": scans_used,
-                "scans_remaining": SignalAIConfig.MAX_SCANS_PER_MATCH - scans_used,
-            })
+            await websocket.send_json(
+                {
+                    "type": "SIGNAL_AI_RESULT",
+                    "status": "cooldown",
+                    "message": "One scan per round. Wait for the next round.",
+                    "scans_used": scans_used,
+                    "scans_remaining": SignalAIConfig.MAX_SCANS_PER_MATCH - scans_used,
+                }
+            )
             return
 
         # 4. Generate the Signal AI report
@@ -987,28 +956,34 @@ async def handle_message(
             )
             # Inject actual scan counts
             report.scans_used = scans_used + 1
-            report.scans_remaining = SignalAIConfig.MAX_SCANS_PER_MATCH - (scans_used + 1)
+            report.scans_remaining = SignalAIConfig.MAX_SCANS_PER_MATCH - (
+                scans_used + 1
+            )
 
             # 5. Update Redis counters
             await redis_client.set(scan_count_key, str(scans_used + 1))
             await redis_client.set(round_cooldown_key, str(game.round_number))
 
             # 6. Send result privately to the detective
-            await websocket.send_json({
-                "type": "SIGNAL_AI_RESULT",
-                "status": "ready",
-                "report": report.model_dump(mode="json"),
-            })
+            await websocket.send_json(
+                {
+                    "type": "SIGNAL_AI_RESULT",
+                    "status": "ready",
+                    "report": report.model_dump(mode="json"),
+                }
+            )
 
         except Exception as exc:
             logger.warning("Signal AI scan failed: %s", exc)
-            await websocket.send_json({
-                "type": "SIGNAL_AI_RESULT",
-                "status": "error",
-                "message": "Analysis failed. Please try again.",
-                "scans_used": scans_used,
-                "scans_remaining": SignalAIConfig.MAX_SCANS_PER_MATCH - scans_used,
-            })
+            await websocket.send_json(
+                {
+                    "type": "SIGNAL_AI_RESULT",
+                    "status": "error",
+                    "message": "Analysis failed. Please try again.",
+                    "scans_used": scans_used,
+                    "scans_remaining": SignalAIConfig.MAX_SCANS_PER_MATCH - scans_used,
+                }
+            )
         return
 
     # --------------------------------------------------
@@ -1018,11 +993,10 @@ async def handle_message(
     await websocket.send_json(
         {
             "type": "ERROR",
-            "message": (
-                f"Unknown event type: {event_type}"
-            ),
+            "message": (f"Unknown event type: {event_type}"),
         }
     )
+
 
 async def authenticate_websocket(
     db: AsyncSession,
@@ -1055,6 +1029,7 @@ async def authenticate_websocket(
 
     return user, user_id
 
+
 async def authorize_room_connection(
     db: AsyncSession,
     room_code: str,
@@ -1075,6 +1050,7 @@ async def authorize_room_connection(
     )
 
     return membership is not None
+
 
 async def broadcast_room_state(
     db: AsyncSession,
@@ -1153,7 +1129,9 @@ async def send_chat_history_to_user(
             reactions_by_message[reaction.message_id] = {}
         if reaction.emoji not in reactions_by_message[reaction.message_id]:
             reactions_by_message[reaction.message_id][reaction.emoji] = []
-        reactions_by_message[reaction.message_id][reaction.emoji].append(reaction.user_id)
+        reactions_by_message[reaction.message_id][reaction.emoji].append(
+            reaction.user_id
+        )
 
     await websocket.send_json(
         {

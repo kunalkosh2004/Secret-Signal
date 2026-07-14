@@ -81,9 +81,20 @@ class JSONFormatter(logging.Formatter):
             log_entry["room_id"] = rid
 
         # Include any extra fields passed via logger.info("msg", key=val)
-        for key in ("game_id", "room_id", "user_id", "room_code", "player_count",
-                     "winner", "phase", "round_number", "event_type", "scan_id",
-                     "model_version", "sequence_number"):
+        for key in (
+            "game_id",
+            "room_id",
+            "user_id",
+            "room_code",
+            "player_count",
+            "winner",
+            "phase",
+            "round_number",
+            "event_type",
+            "scan_id",
+            "model_version",
+            "sequence_number",
+        ):
             val = getattr(record, key, None)
             if val is not None and key not in log_entry:
                 log_entry[key] = val
@@ -102,10 +113,10 @@ class DevFormatter(logging.Formatter):
     """Colored, human-readable logs for local development."""
 
     COLORS = {
-        "DEBUG": "\033[36m",     # cyan
-        "INFO": "\033[32m",      # green
-        "WARNING": "\033[33m",   # yellow
-        "ERROR": "\033[31m",     # red
+        "DEBUG": "\033[36m",  # cyan
+        "INFO": "\033[32m",  # green
+        "WARNING": "\033[33m",  # yellow
+        "ERROR": "\033[31m",  # red
         "CRITICAL": "\033[41m",  # red bg
     }
     RESET = "\033[0m"

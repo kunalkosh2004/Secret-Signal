@@ -116,6 +116,7 @@ async def start_game(
             detail=message,
         )
 
+
 @router.post(
     "/{game_id}/advance-phase",
     response_model=GameState,
@@ -198,7 +199,7 @@ async def advance_phase(
                 "duration_seconds": duration,
                 "ends_at": (
                     datetime.now(timezone.utc) + timedelta(seconds=duration)
-                    ).isoformat(),
+                ).isoformat(),
             },
         )
 
@@ -256,11 +257,7 @@ async def advance_phase(
             await db.refresh(game)
             await db.refresh(room)
 
-            game_players = (
-                await game_repository.get_game_players(
-                    db, game_id=game.id
-                )
-            )
+            game_players = await game_repository.get_game_players(db, game_id=game.id)
 
             await manager.broadcast_to_room(
                 room_code=room.code,
@@ -280,9 +277,7 @@ async def advance_phase(
                             "user_id": gp.user_id,
                             "role": gp.role,
                             "score": gp.score,
-                            "username": (
-                                await get_user_by_id(db, gp.user_id)
-                            ).username,
+                            "username": (await get_user_by_id(db, gp.user_id)).username,
                         }
                         for gp in game_players
                     ],
@@ -298,6 +293,7 @@ async def advance_phase(
     if request.next_phase == GamePhase.GAME_OVER:
         try:
             from app.ml.service import train_model
+
             ml_result = await train_model(db=db)
             await manager.broadcast_to_room(
                 room_code=room.code,
@@ -315,22 +311,18 @@ async def advance_phase(
     # --------------------------------------------------
 
     if request.next_phase == GamePhase.ROUND_START:
-        coordinator = (
-            await game_repository.get_player_by_role(
-                db=db,
-                game_id=game.id,
-                role="coordinator",
-            )
+        coordinator = await game_repository.get_player_by_role(
+            db=db,
+            game_id=game.id,
+            role="coordinator",
         )
 
         if coordinator is not None:
-            missions = (
-                await mission_repository.get_user_missions(
-                    db=db,
-                    game_id=game.id,
-                    user_id=coordinator.user_id,
-                    round_number=game.round_number,
-                )
+            missions = await mission_repository.get_user_missions(
+                db=db,
+                game_id=game.id,
+                user_id=coordinator.user_id,
+                round_number=game.round_number,
             )
 
             await manager.send_to_user(
@@ -342,23 +334,13 @@ async def advance_phase(
                     "missions": [
                         {
                             "id": mission.id,
-                            "mission_type": (
-                                mission.mission_type
-                            ),
+                            "mission_type": (mission.mission_type),
                             "title": mission.title,
-                            "description": (
-                                mission.description
-                            ),
-                            "target_value": (
-                                mission.target_value
-                            ),
-                            "current_value": (
-                                mission.current_value
-                            ),
+                            "description": (mission.description),
+                            "target_value": (mission.target_value),
+                            "current_value": (mission.current_value),
                             "status": mission.status,
-                            "round_number": (
-                                mission.round_number
-                            ),
+                            "round_number": (mission.round_number),
                         }
                         for mission in missions
                     ],

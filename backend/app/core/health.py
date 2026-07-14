@@ -61,6 +61,7 @@ async def readiness(db: AsyncSession = Depends(get_db)):
     # Redis check
     try:
         from app.core.redis import redis_client
+
         await redis_client.ping()
         checks["redis"] = {"status": "healthy"}
     except Exception as e:

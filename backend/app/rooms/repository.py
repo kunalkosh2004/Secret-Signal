@@ -11,11 +11,10 @@ async def get_by_code(
     db: AsyncSession,
     code: str,
 ) -> Optional[Room]:
-    result = await db.execute(
-        select(Room).where(Room.code == code)
-    )
+    result = await db.execute(select(Room).where(Room.code == code))
 
     return result.scalar_one_or_none()
+
 
 async def create(
     db: AsyncSession,
@@ -29,6 +28,7 @@ async def create(
     await db.refresh(room)
 
     return room
+
 
 async def add_player(
     db: AsyncSession,
@@ -47,6 +47,7 @@ async def add_player(
 
     return room_player
 
+
 async def remove_player(
     db: AsyncSession,
     room_id: int,
@@ -60,6 +61,7 @@ async def remove_player(
     )
 
     await db.commit()
+
 
 async def get_player(
     db: AsyncSession,
@@ -75,17 +77,17 @@ async def get_player(
 
     return result.scalar_one_or_none()
 
+
 async def count_players(
     db: AsyncSession,
     room_id: int,
 ) -> int:
     result = await db.execute(
-        select(func.count(RoomPlayer.id)).where(
-            RoomPlayer.room_id == room_id
-        )
+        select(func.count(RoomPlayer.id)).where(RoomPlayer.room_id == room_id)
     )
 
     return result.scalar_one()
+
 
 async def get_players(
     db: AsyncSession,
@@ -97,15 +99,12 @@ async def get_players(
             RoomPlayer,
             RoomPlayer.user_id == User.id,
         )
-        .where(
-            RoomPlayer.room_id == room_id
-        )
-        .order_by(
-            RoomPlayer.joined_at.asc()
-        )
+        .where(RoomPlayer.room_id == room_id)
+        .order_by(RoomPlayer.joined_at.asc())
     )
 
     return list(result.scalars().all())
+
 
 async def set_player_ready(
     db: AsyncSession,
@@ -120,9 +119,7 @@ async def set_player_ready(
     )
 
     if player is None:
-        raise ValueError(
-            "User is not in this room"
-        )
+        raise ValueError("User is not in this room")
 
     player.is_ready = is_ready
 
@@ -130,6 +127,7 @@ async def set_player_ready(
     await db.refresh(player)
 
     return player
+
 
 async def get_players_with_ready_state(
     db: AsyncSession,
@@ -144,24 +142,17 @@ async def get_players_with_ready_state(
             RoomPlayer,
             RoomPlayer.user_id == User.id,
         )
-        .where(
-            RoomPlayer.room_id == room_id
-        )
-        .order_by(
-            RoomPlayer.joined_at.asc()
-        )
+        .where(RoomPlayer.room_id == room_id)
+        .order_by(RoomPlayer.joined_at.asc())
     )
 
     return list(result.all())
+
 
 async def get_by_id(
     db: AsyncSession,
     room_id: int,
 ) -> Optional[Room]:
-    result = await db.execute(
-        select(Room).where(
-            Room.id == room_id
-        )
-    )
+    result = await db.execute(select(Room).where(Room.id == room_id))
 
     return result.scalar_one_or_none()

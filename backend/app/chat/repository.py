@@ -47,7 +47,5 @@ async def get_message_by_id(
     db: AsyncSession,
     message_id: int,
 ) -> Message | None:
-    result = await db.execute(
-        select(Message).where(Message.id == message_id)
-    )
+    result = await db.execute(select(Message).where(Message.id == message_id))
     return result.scalar_one_or_none()

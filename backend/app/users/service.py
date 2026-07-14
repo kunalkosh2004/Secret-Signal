@@ -37,9 +37,7 @@ async def update_username(
     user: User,
     new_username: str,
 ) -> User:
-    existing = await user_repository.get_by_username(
-        db, new_username
-    )
+    existing = await user_repository.get_by_username(db, new_username)
 
     if existing is not None and existing.id != user.id:
         raise ValueError("Username is already taken")
@@ -67,16 +65,17 @@ async def get_user_stats(
     if user is None:
         raise ValueError("User not found")
 
-    game_players = await game_repository.get_game_players_for_user(
-        db, user_id=user_id
-    )
+    game_players = await game_repository.get_game_players_for_user(db, user_id=user_id)
 
     games_played = len(game_players)
     total_score = sum(gp.score for gp in game_players)
     wins = sum(
-        1 for gp in game_players
-        if gp.role == "coordinator" and gp.score > 0
-        or gp.role != "coordinator" and gp.score > 0
+        1
+        for gp in game_players
+        if gp.role == "coordinator"
+        and gp.score > 0
+        or gp.role != "coordinator"
+        and gp.score > 0
     )
 
     return {

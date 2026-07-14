@@ -33,6 +33,7 @@ async def create_mission(
 
     return mission
 
+
 async def get_game_missions(
     db: AsyncSession,
     game_id: int,
@@ -54,13 +55,10 @@ async def get_by_id(
     db: AsyncSession,
     mission_id: int,
 ) -> Optional[Mission]:
-    result = await db.execute(
-        select(Mission).where(
-            Mission.id == mission_id
-        )
-    )
+    result = await db.execute(select(Mission).where(Mission.id == mission_id))
 
     return result.scalar_one_or_none()
+
 
 async def update_mission_progress(
     db: AsyncSession,
@@ -72,6 +70,7 @@ async def update_mission_progress(
     await db.flush()
 
     return mission
+
 
 async def get_user_missions(
     db: AsyncSession,
@@ -90,6 +89,7 @@ async def get_user_missions(
     )
 
     return list(result.scalars().all())
+
 
 async def get_active_mission_by_type(
     db: AsyncSession,

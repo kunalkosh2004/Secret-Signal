@@ -5,6 +5,7 @@ All use password: testpass123
 
 Usage: cd backend && uv run python play_8player_3round.py
 """
+
 import asyncio
 import json
 import random
@@ -20,14 +21,14 @@ WS_BASE = "ws://localhost:8000/ws"
 PASSWORD = "testpass123"
 
 USERS = [
-    {"id": 9,  "username": "Alice",   "email": "alice@test.com"},
-    {"id": 10, "username": "Bob",     "email": "bob@test.com"},
+    {"id": 9, "username": "Alice", "email": "alice@test.com"},
+    {"id": 10, "username": "Bob", "email": "bob@test.com"},
     {"id": 11, "username": "Charlie", "email": "charlie@test.com"},
-    {"id": 12, "username": "Dave",    "email": "dave@test.com"},
-    {"id": 13, "username": "Eve",     "email": "eve@test.com"},
-    {"id": 14, "username": "Frank",   "email": "frank@test.com"},
-    {"id": 15, "username": "Grace",   "email": "grace@test.com"},
-    {"id": 16, "username": "Henry",   "email": "henry@test.com"},
+    {"id": 12, "username": "Dave", "email": "dave@test.com"},
+    {"id": 13, "username": "Eve", "email": "eve@test.com"},
+    {"id": 14, "username": "Frank", "email": "frank@test.com"},
+    {"id": 15, "username": "Grace", "email": "grace@test.com"},
+    {"id": 16, "username": "Henry", "email": "henry@test.com"},
 ]
 
 CHAT_MESSAGES = [
@@ -89,7 +90,6 @@ async def ws_send(ws, msg, timeout=3):
 
 async def main():
     async with httpx.AsyncClient() as client:
-
         # =========================================================
         # 1. LOGIN ALL 8 USERS
         # =========================================================
@@ -98,9 +98,9 @@ async def main():
         user_ids = {}
 
         for u in USERS:
-            res = await client.post(f"{BASE}/auth/login", json={
-                "email": u["email"], "password": PASSWORD
-            })
+            res = await client.post(
+                f"{BASE}/auth/login", json={"email": u["email"], "password": PASSWORD}
+            )
             if res.status_code == 200:
                 d = res.json()
                 tokens[u["email"]] = d["access_token"]
@@ -128,11 +128,13 @@ async def main():
                 "interaction": 60,
                 "discussion": 45,
                 "result": 8,
-            }
+            },
         }
-        res = await client.post(f"{BASE}/rooms",
-                                json={"max_players": 8, "settings": settings},
-                                headers={"Authorization": f"Bearer {host_token}"})
+        res = await client.post(
+            f"{BASE}/rooms",
+            json={"max_players": 8, "settings": settings},
+            headers={"Authorization": f"Bearer {host_token}"},
+        )
         if res.status_code != 201:
             print(f"ERROR creating room: {res.status_code} {res.text}")
             return
@@ -145,9 +147,11 @@ async def main():
         # =========================================================
         print("\n[3] JOIN ROOM")
         for u in USERS[1:]:
-            res = await client.post(f"{BASE}/rooms/join",
-                                    json={"code": room_code},
-                                    headers={"Authorization": f"Bearer {tokens[u['email']]}"})
+            res = await client.post(
+                f"{BASE}/rooms/join",
+                json={"code": room_code},
+                headers={"Authorization": f"Bearer {tokens[u['email']]}"},
+            )
             status = "✓" if res.status_code == 200 else "✗"
             print(f"  {status} {u['username']} joined ({res.status_code})")
 
@@ -162,7 +166,9 @@ async def main():
             room = await room_repo.get_by_code(db, room_code)
             for u in USERS:
                 uid = user_ids[u["email"]]
-                await room_repo.set_player_ready(db, room_id=room.id, user_id=uid, is_ready=True)
+                await room_repo.set_player_ready(
+                    db, room_id=room.id, user_id=uid, is_ready=True
+                )
             players = await room_repo.get_players_with_ready_state(db, room_id=room.id)
             print(f"  ✓ {len(players)} players ready")
 
@@ -170,14 +176,18 @@ async def main():
         # 5. START GAME
         # =========================================================
         print("\n[5] START GAME")
-        res = await client.post(f"{BASE}/games/{room_code}/start",
-                                headers={"Authorization": f"Bearer {host_token}"})
+        res = await client.post(
+            f"{BASE}/games/{room_code}/start",
+            headers={"Authorization": f"Bearer {host_token}"},
+        )
         if res.status_code != 201:
             print(f"ERROR starting game: {res.status_code} {res.text}")
             return
         game_data = res.json()
         game_id = game_data["id"]
-        print(f"  ✓ Game started: id={game_id}, phase={game_data['phase']}, round={game_data['round_number']}")
+        print(
+            f"  ✓ Game started: id={game_id}, phase={game_data['phase']}, round={game_data['round_number']}"
+        )
         print(f"  max_rounds={game_data.get('max_rounds', 'N/A')}")
 
         # =========================================================
@@ -188,7 +198,9 @@ async def main():
         for u in USERS:
             token = tokens[u["email"]]
             try:
-                ws = await websockets.connect(f"{WS_BASE}?token={token}&room_code={room_code}")
+                ws = await websockets.connect(
+                    f"{WS_BASE}?token={token}&room_code={room_code}"
+                )
                 ws_conns[u["email"]] = ws
                 await drain(ws, timeout=3)
                 print(f"  ✓ {u['username']} connected")
@@ -202,9 +214,9 @@ async def main():
         # PLAY 3 ROUNDS
         # =========================================================
         for round_num in range(1, 4):
-            print(f"\n{'='*60}")
+            print(f"\n{'=' * 60}")
             print(f"  ROUND {round_num} of 3")
-            print(f"{'='*60}")
+            print(f"{'=' * 60}")
 
             # --- Wait for auto-advance to interaction ---
             print(f"\n  [{round_num}.1] WAITING FOR PHASE ADVANCES...")
@@ -213,9 +225,11 @@ async def main():
                 await drain(ws, timeout=2)
 
             # Force advance to interaction if needed
-            res = await client.post(f"{BASE}/games/{game_id}/advance-phase",
-                                    json={"next_phase": "interaction"},
-                                    headers={"Authorization": f"Bearer {host_token}"})
+            res = await client.post(
+                f"{BASE}/games/{game_id}/advance-phase",
+                json={"next_phase": "interaction"},
+                headers={"Authorization": f"Bearer {host_token}"},
+            )
             if res.status_code == 200:
                 print("  ✓ Advanced to interaction")
             await asyncio.sleep(1)
@@ -239,10 +253,14 @@ async def main():
             print(f"\n  [{round_num}.3] ADVANCE → DISCUSSION")
             for ws in ws_conns.values():
                 await drain(ws, timeout=1)
-            res = await client.post(f"{BASE}/games/{game_id}/advance-phase",
-                                    json={"next_phase": "discussion"},
-                                    headers={"Authorization": f"Bearer {host_token}"})
-            print(f"  {'✓' if res.status_code == 200 else '✗'} Advance to discussion ({res.status_code})")
+            res = await client.post(
+                f"{BASE}/games/{game_id}/advance-phase",
+                json={"next_phase": "discussion"},
+                headers={"Authorization": f"Bearer {host_token}"},
+            )
+            print(
+                f"  {'✓' if res.status_code == 200 else '✗'} Advance to discussion ({res.status_code})"
+            )
             await asyncio.sleep(1)
             for ws in ws_conns.values():
                 await drain(ws, timeout=2)
@@ -263,10 +281,14 @@ async def main():
             print(f"\n  [{round_num}.5] ADVANCE → VOTING")
             for ws in ws_conns.values():
                 await drain(ws, timeout=1)
-            res = await client.post(f"{BASE}/games/{game_id}/advance-phase",
-                                    json={"next_phase": "voting"},
-                                    headers={"Authorization": f"Bearer {host_token}"})
-            print(f"  {'✓' if res.status_code == 200 else '✗'} Advance to voting ({res.status_code})")
+            res = await client.post(
+                f"{BASE}/games/{game_id}/advance-phase",
+                json={"next_phase": "voting"},
+                headers={"Authorization": f"Bearer {host_token}"},
+            )
+            print(
+                f"  {'✓' if res.status_code == 200 else '✗'} Advance to voting ({res.status_code})"
+            )
             await asyncio.sleep(1)
             for ws in ws_conns.values():
                 await drain(ws, timeout=2)
@@ -281,7 +303,9 @@ async def main():
                 ws = ws_conns.get(u["email"])
                 if not ws:
                     continue
-                await ws_send(ws, {"type": "CAST_VOTE", "payload": {"target_user_id": target}})
+                await ws_send(
+                    ws, {"type": "CAST_VOTE", "payload": {"target_user_id": target}}
+                )
                 await asyncio.sleep(0.5)
                 print(f"  ✓ {u['username']} voted for user {target}")
 
@@ -296,10 +320,14 @@ async def main():
                 print(f"\n  [{round_num}.8] ADVANCE → ROUND {round_num + 1}")
                 for ws in ws_conns.values():
                     await drain(ws, timeout=1)
-                res = await client.post(f"{BASE}/games/{game_id}/advance-phase",
-                                        json={"next_phase": "round_start"},
-                                        headers={"Authorization": f"Bearer {host_token}"})
-                print(f"  {'✓' if res.status_code == 200 else '✗'} Advance to round_start ({res.status_code})")
+                res = await client.post(
+                    f"{BASE}/games/{game_id}/advance-phase",
+                    json={"next_phase": "round_start"},
+                    headers={"Authorization": f"Bearer {host_token}"},
+                )
+                print(
+                    f"  {'✓' if res.status_code == 200 else '✗'} Advance to round_start ({res.status_code})"
+                )
                 await asyncio.sleep(1)
                 for ws in ws_conns.values():
                     await drain(ws, timeout=2)
@@ -308,10 +336,14 @@ async def main():
                 print(f"\n  [{round_num}.8] ADVANCE → GAME OVER")
                 for ws in ws_conns.values():
                     await drain(ws, timeout=1)
-                res = await client.post(f"{BASE}/games/{game_id}/advance-phase",
-                                        json={"next_phase": "game_over"},
-                                        headers={"Authorization": f"Bearer {host_token}"})
-                print(f"  {'✓' if res.status_code == 200 else '✗'} Advance to game_over ({res.status_code})")
+                res = await client.post(
+                    f"{BASE}/games/{game_id}/advance-phase",
+                    json={"next_phase": "game_over"},
+                    headers={"Authorization": f"Bearer {host_token}"},
+                )
+                print(
+                    f"  {'✓' if res.status_code == 200 else '✗'} Advance to game_over ({res.status_code})"
+                )
                 await asyncio.sleep(3)
                 for ws in ws_conns.values():
                     await drain(ws, timeout=3)
@@ -319,9 +351,9 @@ async def main():
         # =========================================================
         # VERIFY GAME STATE
         # =========================================================
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print("  GAME COMPLETE — VERIFYING")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
 
         from app.db.session import SessionLocal as SL
         from app.game_engine import repository as game_repo
@@ -339,8 +371,9 @@ async def main():
             game_players = await game_repo.get_game_players(db, game_id=game_id)
             print(f"\n  Players ({len(game_players)}):")
             for gp in game_players:
-                await client.get(f"{BASE}/auth/me",
-                                 headers={"Authorization": f"Bearer {host_token}"})
+                await client.get(
+                    f"{BASE}/auth/me", headers={"Authorization": f"Bearer {host_token}"}
+                )
                 # Just print role and score
                 print(f"    User {gp.user_id}: role={gp.role}, score={gp.score}")
 
@@ -356,9 +389,11 @@ async def main():
                 print(f"    Winner: {analysis.winner}")
                 print(f"    Players analyzed: {len(analysis.players)}")
                 for p in analysis.players:
-                    print(f"      {p.username} ({p.role}): msgs={p.message_count}, "
-                          f"replies={p.reply_count}, reactions={p.reaction_count}, "
-                          f"suspicion={p.suspicion_score:.1f}")
+                    print(
+                        f"      {p.username} ({p.role}): msgs={p.message_count}, "
+                        f"replies={p.reply_count}, reactions={p.reaction_count}, "
+                        f"suspicion={p.suspicion_score:.1f}"
+                    )
             except Exception as e:
                 print(f"  Analytics error: {e}")
 
@@ -374,9 +409,9 @@ async def main():
         # =========================================================
         # FINAL OUTPUT
         # =========================================================
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print("  GAME COMPLETE")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
         print(f"  Game ID:            {game_id}")
         print(f"  Room Code:          {room_code}")
         print("  Players:            8")
@@ -389,7 +424,7 @@ async def main():
         print("  Full URL:")
         print(f"    http://localhost:8000/api/v1/analytics/game/{game_id}")
         print(f"    http://localhost:8000/api/v1/ml/predict/{game_id}")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
 
 
 if __name__ == "__main__":

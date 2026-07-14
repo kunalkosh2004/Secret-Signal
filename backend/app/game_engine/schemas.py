@@ -6,7 +6,6 @@ from pydantic import BaseModel
 from app.game_engine.state_machine import GamePhase
 
 
-
 class AdvancePhaseRequest(BaseModel):
     next_phase: GamePhase
 
@@ -26,14 +25,13 @@ class GameState(BaseModel):
     phase_durations: dict[str, Any] = {}
     created_at: datetime
 
-    model_config = {
-        "from_attributes": True
-    }
+    model_config = {"from_attributes": True}
 
 
 class RoleAssignment(BaseModel):
     user_id: int
     role: str
+
 
 class WinConditionResult(BaseModel):
     game_over: bool

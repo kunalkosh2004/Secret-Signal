@@ -17,9 +17,7 @@ class MissionState(BaseModel):
     created_at: datetime
     completed_at: datetime | None
 
-    model_config = {
-        "from_attributes": True
-    }
+    model_config = {"from_attributes": True}
 
 
 class MissionProgress(BaseModel):

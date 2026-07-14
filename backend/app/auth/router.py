@@ -18,7 +18,7 @@ from app.auth.schemas import SignupRequest, LoginRequest, TokenResponse
 from app.auth.service import (
     signup as signup_service,
     login as login_service,
-    handle_google_callback
+    handle_google_callback,
 )
 from app.db.session import get_db
 from app.auth.dependencies import get_current_user
@@ -78,12 +78,11 @@ async def logout(
             exp = payload.get("exp")
             if jti and exp:
                 import time
+
                 remaining = max(0, int(exp) - int(time.time()))
                 await revoke_token(jti, remaining)
 
-    return {
-        "message": "Logged out successfully"
-    }
+    return {"message": "Logged out successfully"}
 
 
 @router.get(
@@ -121,15 +120,13 @@ async def google_callback(
     if not state_is_valid:
         raise UnauthorizedError()
 
-    result = await handle_google_callback(
-        db=db,
-        code=code
-    )
+    result = await handle_google_callback(db=db, code=code)
 
     return RedirectResponse(
         url=f"{settings.frontend_url}/auth/google/callback?access_token={result.access_token}",
         status_code=302,
     )
+
 
 @router.get("/google/link")
 async def google_link(
@@ -152,6 +149,7 @@ async def google_link(
         status_code=302,
     )
 
+
 @router.get("/google/link/callback")
 async def google_link_callback(
     code: str = Query(...),
@@ -169,14 +167,13 @@ async def google_link_callback(
         user_id=user_id,
     )
 
-    return {
-        "message": "Google account linked successfully"
-    }
+    return {"message": "Google account linked successfully"}
 
 
 # ---------------------------------------------------------------------------
 # Forgot password
 # ---------------------------------------------------------------------------
+
 
 class ForgotPasswordRequest(BaseModel):
     email: str
@@ -197,14 +194,18 @@ async def forgot_password(
     In production, this would send an email. For now, we return the token directly.
     """
     # Rate limit: 3 forgot password requests per minute per email
-    if await is_rate_limited("api_auth", f"forgot:{request.email}", max_requests=3, window_seconds=60):
+    if await is_rate_limited(
+        "api_auth", f"forgot:{request.email}", max_requests=3, window_seconds=60
+    ):
         raise UnauthorizedError("Too many requests. Please wait before trying again.")
 
     user = await user_repository.get_by_email(db, request.email.lower().strip())
 
     if user is None:
         # Don't reveal whether the email exists
-        return {"message": "If an account with that email exists, a reset link has been sent."}
+        return {
+            "message": "If an account with that email exists, a reset link has been sent."
+        }
 
     # Generate a secure reset token
     reset_token = secrets.token_urlsafe(32)
@@ -244,4 +245,6 @@ async def reset_password(
     # Revoke all existing tokens for this user
     await revoke_all_user_tokens(user_id, expires_in_seconds=3600)
 
-    return {"message": "Password reset successfully. Please log in with your new password."}
+    return {
+        "message": "Password reset successfully. Please log in with your new password."
+    }

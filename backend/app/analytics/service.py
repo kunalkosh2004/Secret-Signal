@@ -211,13 +211,9 @@ async def analyze_game(
     if game is None:
         raise ValueError(f"Game {game_id} not found")
 
-    game_players = await game_repository.get_game_players(
-        db, game_id=game_id
-    )
+    game_players = await game_repository.get_game_players(db, game_id=game_id)
 
-    all_events = await event_repository.get_game_events(
-        db, game_id=game_id
-    )
+    all_events = await event_repository.get_game_events(db, game_id=game_id)
 
     messages_by_player: dict[int, list[dict]] = {}
     for event in all_events:
@@ -282,17 +278,13 @@ async def analyze_game(
 
         round_breakdown = []
         for r in range(1, game.round_number + 1):
-            round_msgs = [
-                m for m in messages if m.get("round") == r
-            ]
+            round_msgs = [m for m in messages if m.get("round") == r]
             round_breakdown.append(
                 {
                     "round": r,
                     "message_count": len(round_msgs),
                     "questions": sum(
-                        _count_questions(
-                            m.get("payload", {}).get("content", "")
-                        )
+                        _count_questions(m.get("payload", {}).get("content", ""))
                         for m in round_msgs
                     ),
                 }
@@ -303,12 +295,12 @@ async def analyze_game(
 
         # --- Reply / reaction metrics for this player ---
         player_room_msgs = await chat_repository.get_room_messages(
-            db, room_id=game.room_id, limit=500,
+            db,
+            room_id=game.room_id,
+            limit=500,
         )
         # Messages sent by this player (as Message objects)
-        player_sent = [
-            m for m, _ in player_room_msgs if m.user_id == uid
-        ]
+        player_sent = [m for m, _ in player_room_msgs if m.user_id == uid]
 
         reply_count = 0
         reply_to_coordinator = 0
@@ -318,14 +310,16 @@ async def analyze_game(
                 reply_count += 1
                 # Look up the replied-to message's author role
                 orig = next(
-                    (msg for msg, _ in player_room_msgs
-                     if msg.id == m.reply_to_message_id),
+                    (
+                        msg
+                        for msg, _ in player_room_msgs
+                        if msg.id == m.reply_to_message_id
+                    ),
                     None,
                 )
                 if orig is not None:
                     orig_player = next(
-                        (gp for gp in game_players
-                         if gp.user_id == orig.user_id),
+                        (gp for gp in game_players if gp.user_id == orig.user_id),
                         None,
                     )
                     if orig_player is not None:
@@ -338,7 +332,8 @@ async def analyze_game(
         all_reactions_by_player: list = []
         for m in player_sent:
             rxns = await reaction_repository.get_reactions_for_message(
-                db, message_id=m.id,
+                db,
+                message_id=m.id,
             )
             all_reactions_by_player.extend(rxns)
 
@@ -346,13 +341,12 @@ async def analyze_game(
         all_reactions_received: list = []
         for m in player_sent:
             rxns = await reaction_repository.get_reactions_for_message(
-                db, message_id=m.id,
+                db,
+                message_id=m.id,
             )
             all_reactions_received.extend(rxns)
 
-        unique_emojis_used = len(
-            {r.emoji for r in all_reactions_by_player}
-        )
+        unique_emojis_used = len({r.emoji for r in all_reactions_by_player})
 
         profile = PlayerBehaviorProfile(
             user_id=uid,
@@ -399,17 +393,11 @@ async def analyze_game(
         if last_votes:
             vote_counts: dict[int, int] = {}
             for v in last_votes:
-                vote_counts[v.target_user_id] = (
-                    vote_counts.get(v.target_user_id, 0) + 1
-                )
+                vote_counts[v.target_user_id] = vote_counts.get(v.target_user_id, 0) + 1
             if vote_counts:
                 top_target = max(vote_counts, key=vote_counts.get)
                 coord = next(
-                    (
-                        gp
-                        for gp in game_players
-                        if gp.role == "coordinator"
-                    ),
+                    (gp for gp in game_players if gp.role == "coordinator"),
                     None,
                 )
                 if coord and top_target == coord.user_id:
@@ -428,18 +416,14 @@ async def analyze_game(
                 )
             voting_patterns[str(r)] = vote_counts_r
 
-    coord_profile = next(
-        (p for p in profiles if p.role == "coordinator"), None
-    )
-    citizen_profiles = [
-        p for p in profiles if p.role != "coordinator"
-    ]
+    coord_profile = next((p for p in profiles if p.role == "coordinator"), None)
+    citizen_profiles = [p for p in profiles if p.role != "coordinator"]
 
     coordination_score = 0.0
     if citizen_profiles and coord_profile:
-        avg_citizen_msgs = sum(
-            p.message_count for p in citizen_profiles
-        ) / len(citizen_profiles)
+        avg_citizen_msgs = sum(p.message_count for p in citizen_profiles) / len(
+            citizen_profiles
+        )
         if coord_profile.message_count > 0:
             ratio = avg_citizen_msgs / coord_profile.message_count
             coordination_score = min(100.0, ratio * 50.0)
@@ -450,9 +434,7 @@ async def analyze_game(
         f"{completed_missions} completed missions."
     )
 
-    coord = next(
-        (p for p in profiles if p.role == "coordinator"), None
-    )
+    coord = next((p for p in profiles if p.role == "coordinator"), None)
     if coord:
         summary_lines.append(
             f"The coordinator ({coord.username}) sent "
@@ -460,9 +442,7 @@ async def analyze_game(
             f"length of {coord.avg_message_length:.0f} characters."
         )
 
-    suspicious = sorted(
-        profiles, key=lambda p: p.suspicion_score, reverse=True
-    )
+    suspicious = sorted(profiles, key=lambda p: p.suspicion_score, reverse=True)
     if suspicious:
         top = suspicious[0]
         summary_lines.append(

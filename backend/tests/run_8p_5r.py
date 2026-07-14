@@ -1,4 +1,5 @@
 """8-user 5-round game with randomized messages and Signal AI scans."""
+
 import asyncio
 import random
 import sys
@@ -103,11 +104,14 @@ async def http_get(c, path, headers):
 
 async def main():
     import httpx
+
     async with httpx.AsyncClient(timeout=30) as c:
         # Login all 8 users
         tokens = {}
         for uid, email in USERS:
-            r = await c.post(f"{BASE}/auth/login", json={"email": email, "password": PW})
+            r = await c.post(
+                f"{BASE}/auth/login", json={"email": email, "password": PW}
+            )
             assert r.status_code == 200, f"Login {email}: {r.status_code} {r.text}"
             tokens[uid] = r.json()["access_token"]
         print(f"Logged in {len(USERS)} users")
@@ -117,37 +121,47 @@ async def main():
         h = {"Authorization": f"Bearer {host_token}"}
 
         # Create room with 5 rounds
-        r = await c.post(f"{BASE}/rooms", json={
-            "max_players": 8,
-            "settings": {
-                "max_rounds": 5,
-                "phase_durations": {
-                    "role_assignment": 3,
-                    "round_start": 3,
-                    "interaction": 15,
-                    "discussion": 15,
-                    "result": 5,
+        r = await c.post(
+            f"{BASE}/rooms",
+            json={
+                "max_players": 8,
+                "settings": {
+                    "max_rounds": 5,
+                    "phase_durations": {
+                        "role_assignment": 3,
+                        "round_start": 3,
+                        "interaction": 15,
+                        "discussion": 15,
+                        "result": 5,
+                    },
                 },
             },
-        }, headers=h)
+            headers=h,
+        )
         assert r.status_code == 201, f"Create room: {r.status_code} {r.text}"
         room_code = r.json()["code"]
         print(f"Room: {room_code}")
 
         # Join all other users
         for uid, email in USERS[1:]:
-            r = await c.post(f"{BASE}/rooms/join", json={"code": room_code},
-                            headers={"Authorization": f"Bearer {tokens[uid]}"})
+            r = await c.post(
+                f"{BASE}/rooms/join",
+                json={"code": room_code},
+                headers={"Authorization": f"Bearer {tokens[uid]}"},
+            )
             assert r.status_code == 200, f"Join {email}: {r.status_code} {r.text}"
         print(f"All {len(USERS)} players joined")
 
         # Ready all players via DB
         from app.db.session import SessionLocal
         from app.rooms import repository as room_repo
+
         async with SessionLocal() as db:
             room = await room_repo.get_by_code(db, room_code)
             for uid, _ in USERS:
-                await room_repo.set_player_ready(db, room_id=room.id, user_id=uid, is_ready=True)
+                await room_repo.set_player_ready(
+                    db, room_id=room.id, user_id=uid, is_ready=True
+                )
             await db.commit()
         print("All players ready")
 
@@ -169,9 +183,9 @@ async def main():
         from app.signal_ai.service import generate_signal_report
 
         for rnd in range(1, 6):
-            print(f"\n{'='*50}")
+            print(f"\n{'=' * 50}")
             print(f"  ROUND {rnd}/5")
-            print(f"{'='*50}")
+            print(f"{'=' * 50}")
 
             # Check phase
             async with SessionLocal() as db:
@@ -181,8 +195,11 @@ async def main():
 
             # Advance to interaction if needed
             if current_phase != "interaction":
-                r = await c.post(f"{BASE}/games/{game_id}/advance-phase",
-                                 json={"next_phase": "interaction"}, headers=h)
+                r = await c.post(
+                    f"{BASE}/games/{game_id}/advance-phase",
+                    json={"next_phase": "interaction"},
+                    headers=h,
+                )
                 print(f"  -> interaction: {r.status_code}")
 
             # === INTERACTION PHASE: Randomized messages ===
@@ -191,18 +208,26 @@ async def main():
                 total_msgs = 0
 
                 for uid, _ in USERS:
-                    gp = await game_repo.get_game_player(db, game_id=game_id, user_id=uid)
+                    gp = await game_repo.get_game_player(
+                        db, game_id=game_id, user_id=uid
+                    )
                     # Randomize: 5-40 messages per user
                     msg_count = random.randint(5, 40)
 
                     for _ in range(msg_count):
                         content = random.choice(CHAT_POOL)
                         msg = await chat_repo.create_message(
-                            db, room_id=room.id, user_id=uid, content=content,
+                            db,
+                            room_id=room.id,
+                            user_id=uid,
+                            content=content,
                         )
                         await event_repo.create_event(
-                            db, game_id=game_id, round_number=rnd,
-                            event_type="message_sent", user_id=uid,
+                            db,
+                            game_id=game_id,
+                            round_number=rnd,
+                            event_type="message_sent",
+                            user_id=uid,
                             payload={"message_id": msg.id, "content": content},
                         )
                         # Training data
@@ -212,15 +237,22 @@ async def main():
                             if has_reply:
                                 others = [u for u, _ in USERS if u != uid]
                                 rp = await game_repo.get_game_player(
-                                    db, game_id=game_id, user_id=random.choice(others),
+                                    db,
+                                    game_id=game_id,
+                                    user_id=random.choice(others),
                                 )
                                 if rp:
                                     reply_role = rp.role
                             await training_repo.create_training_message(
-                                db, game_id=game_id, user_id=uid, role=gp.role,
-                                phase=game.phase, content=content,
+                                db,
+                                game_id=game_id,
+                                user_id=uid,
+                                role=gp.role,
+                                phase=game.phase,
+                                content=content,
                                 round_number=rnd,
-                                has_reply=has_reply, reply_to_role=reply_role,
+                                has_reply=has_reply,
+                                reply_to_role=reply_role,
                             )
 
                     total_msgs += msg_count
@@ -230,29 +262,44 @@ async def main():
             print(f"  Total messages this round: {total_msgs}")
 
             # === DISCUSSION PHASE ===
-            r = await c.post(f"{BASE}/games/{game_id}/advance-phase",
-                             json={"next_phase": "discussion"}, headers=h)
+            r = await c.post(
+                f"{BASE}/games/{game_id}/advance-phase",
+                json={"next_phase": "discussion"},
+                headers=h,
+            )
             print(f"  -> discussion: {r.status_code}")
 
             async with SessionLocal() as db:
                 game = await game_repo.get_by_id(db, game_id)
                 for uid, _ in USERS:
-                    gp = await game_repo.get_game_player(db, game_id=game_id, user_id=uid)
+                    gp = await game_repo.get_game_player(
+                        db, game_id=game_id, user_id=uid
+                    )
                     # 1-3 discussion messages per user
                     for _ in range(random.randint(1, 3)):
                         content = random.choice(DISCUSSION_POOL)
                         msg = await chat_repo.create_message(
-                            db, room_id=room.id, user_id=uid, content=content,
+                            db,
+                            room_id=room.id,
+                            user_id=uid,
+                            content=content,
                         )
                         await event_repo.create_event(
-                            db, game_id=game_id, round_number=rnd,
-                            event_type="message_sent", user_id=uid,
+                            db,
+                            game_id=game_id,
+                            round_number=rnd,
+                            event_type="message_sent",
+                            user_id=uid,
                             payload={"message_id": msg.id, "content": content},
                         )
                         if gp:
                             await training_repo.create_training_message(
-                                db, game_id=game_id, user_id=uid, role=gp.role,
-                                phase=game.phase, content=content,
+                                db,
+                                game_id=game_id,
+                                user_id=uid,
+                                role=gp.role,
+                                phase=game.phase,
+                                content=content,
                                 round_number=rnd,
                             )
                 await db.commit()
@@ -260,10 +307,14 @@ async def main():
             # === SIGNAL AI SCAN ===
             async with SessionLocal() as db:
                 coordinator = await game_repo.get_player_by_role(
-                    db, game_id=game_id, role="coordinator",
+                    db,
+                    game_id=game_id,
+                    role="coordinator",
                 )
                 detective = await game_repo.get_player_by_role(
-                    db, game_id=game_id, role="detective",
+                    db,
+                    game_id=game_id,
+                    role="detective",
                 )
                 detective_uid = detective.user_id if detective else USERS[1][0]
 
@@ -273,23 +324,34 @@ async def main():
                 print(f"    Model: {report.model_version}")
                 if report.most_suspicious:
                     ms = report.most_suspicious
-                    print(f"    Most Suspicious: {ms.username} "
-                          f"({ms.suspicion_score:.1f}%)")
+                    print(
+                        f"    Most Suspicious: {ms.username} "
+                        f"({ms.suspicion_score:.1f}%)"
+                    )
                 for sp in report.all_players[:3]:
-                    print(f"    {sp.username}: suspicion={sp.suspicion_score:.1f}% "
-                          f"({sp.confidence.value})")
+                    print(
+                        f"    {sp.username}: suspicion={sp.suspicion_score:.1f}% "
+                        f"({sp.confidence.value})"
+                    )
                     for m in sp.behavior_metrics[:2]:
-                        print(f"      - {m.label}: {m.value:.2f} (norm={m.normalized:.2f})")
+                        print(
+                            f"      - {m.label}: {m.value:.2f} (norm={m.normalized:.2f})"
+                        )
 
             # === VOTING PHASE ===
-            r = await c.post(f"{BASE}/games/{game_id}/advance-phase",
-                             json={"next_phase": "voting"}, headers=h)
+            r = await c.post(
+                f"{BASE}/games/{game_id}/advance-phase",
+                json={"next_phase": "voting"},
+                headers=h,
+            )
             print(f"\n  -> voting: {r.status_code}")
 
             # Cast votes — avoid the coordinator so game runs all 5 rounds
             async with SessionLocal() as db:
                 coordinator = await game_repo.get_player_by_role(
-                    db, game_id=game_id, role="coordinator",
+                    db,
+                    game_id=game_id,
+                    role="coordinator",
                 )
                 coord_uid = coordinator.user_id if coordinator else None
                 all_uids = [uid for uid, _ in USERS]
@@ -301,15 +363,21 @@ async def main():
                         others = [x for x in all_uids if x != uid]
                     target = random.choice(others)
                     await vote_repo.create_vote(
-                        db, game_id=game_id, round_number=rnd,
-                        voter_user_id=uid, target_user_id=target,
+                        db,
+                        game_id=game_id,
+                        round_number=rnd,
+                        voter_user_id=uid,
+                        target_user_id=target,
                     )
                 await db.commit()
             print("  8 votes cast")
 
             # === RESULT PHASE ===
-            r = await c.post(f"{BASE}/games/{game_id}/advance-phase",
-                             json={"next_phase": "result"}, headers=h)
+            r = await c.post(
+                f"{BASE}/games/{game_id}/advance-phase",
+                json={"next_phase": "result"},
+                headers=h,
+            )
             print(f"  -> result: {r.status_code}")
 
             # Check if game ended
@@ -321,14 +389,20 @@ async def main():
 
             # Advance to next round or game over
             if rnd < 5:
-                r = await c.post(f"{BASE}/games/{game_id}/advance-phase",
-                                 json={"next_phase": "round_start"}, headers=h)
+                r = await c.post(
+                    f"{BASE}/games/{game_id}/advance-phase",
+                    json={"next_phase": "round_start"},
+                    headers=h,
+                )
                 print(f"  -> round_start: {r.status_code}")
                 print("  Waiting for auto-advance...")
                 await asyncio.sleep(8)
             else:
-                r = await c.post(f"{BASE}/games/{game_id}/advance-phase",
-                                 json={"next_phase": "game_over"}, headers=h)
+                r = await c.post(
+                    f"{BASE}/games/{game_id}/advance-phase",
+                    json={"next_phase": "game_over"},
+                    headers=h,
+                )
                 print(f"  -> game_over: {r.status_code}")
 
         # Final results
@@ -337,9 +411,9 @@ async def main():
             players = await game_repo.get_game_players(db, game_id=game_id)
             from app.users.service import get_user_by_id
 
-            print(f"\n{'='*50}")
+            print(f"\n{'=' * 50}")
             print("  GAME COMPLETE")
-            print(f"{'='*50}")
+            print(f"{'=' * 50}")
             print(f"  Game ID:     {game.id}")
             print(f"  Room Code:   {room_code}")
             print(f"  Status:      {game.status}")
@@ -349,11 +423,14 @@ async def main():
             for gp in players:
                 user = await get_user_by_id(db, gp.user_id)
                 tag = " ***COORDINATOR***" if gp.role == "coordinator" else ""
-                print(f"    {user.username:>10} (id={gp.user_id}): "
-                      f"role={gp.role:15} score={gp.score}{tag}")
+                print(
+                    f"    {user.username:>10} (id={gp.user_id}): "
+                    f"role={gp.role:15} score={gp.score}{tag}"
+                )
             print("\n  Endpoints:")
             print(f"    Analysis: http://localhost:8000/api/v1/analytics/{game_id}")
             print(f"    Replay:   http://localhost:8000/api/v1/replay/{game_id}")
             print(f"    Frontend: http://localhost:5173/game/{room_code}/analysis")
+
 
 asyncio.run(main())

@@ -10,31 +10,28 @@ async def get_by_id(
     db: AsyncSession,
     user_id: int,
 ) -> Optional[User]:
-    result = await db.execute(
-        select(User).where(User.id == user_id)
-    )
+    result = await db.execute(select(User).where(User.id == user_id))
 
     return result.scalar_one_or_none()
+
 
 async def get_by_email(
     db: AsyncSession,
     email: str,
 ) -> Optional[User]:
-    result = await db.execute(
-        select(User).where(User.email == email)
-    )
+    result = await db.execute(select(User).where(User.email == email))
 
     return result.scalar_one_or_none()
+
 
 async def get_by_username(
     db: AsyncSession,
     username: str,
 ) -> Optional[User]:
-    result = await db.execute(
-        select(User).where(User.username == username)
-    )
+    result = await db.execute(select(User).where(User.username == username))
 
     return result.scalar_one_or_none()
+
 
 async def create(
     db: AsyncSession,
@@ -49,6 +46,7 @@ async def create(
     await db.refresh(user)
 
     return user
+
 
 async def update(
     db: AsyncSession,

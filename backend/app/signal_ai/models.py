@@ -21,6 +21,7 @@ from pydantic import BaseModel, Field
 # Confidence enum
 # ---------------------------------------------------------------------------
 
+
 class ConfidenceLevel(str, Enum):
     LOW = "low"
     MEDIUM = "medium"
@@ -30,6 +31,7 @@ class ConfidenceLevel(str, Enum):
 # ---------------------------------------------------------------------------
 # Behavioral feature primitives
 # ---------------------------------------------------------------------------
+
 
 class BehaviorMetric(BaseModel):
     """A single quantified behavioral observation."""
@@ -55,6 +57,7 @@ class BehaviorMetric(BaseModel):
 # ---------------------------------------------------------------------------
 # Per-player suspicion entry
 # ---------------------------------------------------------------------------
+
 
 class PlayerSuspicion(BaseModel):
     """One player's entry in the Signal AI report."""
@@ -94,6 +97,7 @@ class PlayerSuspicion(BaseModel):
 # ---------------------------------------------------------------------------
 # Top-level Signal AI report
 # ---------------------------------------------------------------------------
+
 
 class SignalAIReport(BaseModel):
     """Complete output of a Signal AI scan.
@@ -142,6 +146,7 @@ class SignalAIReport(BaseModel):
 # Scan status responses (for error / cooldown cases)
 # ---------------------------------------------------------------------------
 
+
 class ScanStatus(BaseModel):
     """Returned when a scan cannot proceed."""
 
@@ -157,6 +162,7 @@ class ScanStatus(BaseModel):
 # ---------------------------------------------------------------------------
 # Game balance constants
 # ---------------------------------------------------------------------------
+
 
 class SignalAIConfig:
     """Tunable game-balance constants.

@@ -36,7 +36,9 @@ class Settings(BaseSettings):
     google_client_id: str = ""
     google_client_secret: str = ""
     google_redirect_uri: str = "http://localhost:8000/api/v1/auth/google/callback"
-    google_link_redirect_uri: str = "http://localhost:8000/api/v1/auth/google/link/callback"
+    google_link_redirect_uri: str = (
+        "http://localhost:8000/api/v1/auth/google/link/callback"
+    )
 
     frontend_url: str = "http://localhost:5173"
     redis_host: str = "localhost"
@@ -54,7 +56,9 @@ class Settings(BaseSettings):
             return self
 
         auth = f":{self.redis_password}@" if self.redis_password else ""
-        self.redis_url = f"redis://{auth}{self.redis_host}:{self.redis_port}/{self.redis_db}"
+        self.redis_url = (
+            f"redis://{auth}{self.redis_host}:{self.redis_port}/{self.redis_db}"
+        )
         return self
 
 

@@ -10,6 +10,7 @@ pwd_context = CryptContext(
     deprecated="auto",
 )
 
+
 def hash_password(plaintext: str) -> str:
     """Hash a plaintext password using bcrypt."""
     return pwd_context.hash(plaintext)
@@ -21,9 +22,9 @@ def verify_password(plaintext: str, hashed: str) -> bool:
 
 
 def create_access_token(
-        data: dict,
-        expires_delta: Optional[int] = None,
-    ) -> str:
+    data: dict,
+    expires_delta: Optional[int] = None,
+) -> str:
     payload = data.copy()
 
     expire_minutes = (
@@ -32,20 +33,21 @@ def create_access_token(
         else settings.access_token_expire_minutes
     )
 
-    expire = datetime.now(timezone.utc) + timedelta(
-        minutes=expire_minutes
-    )
+    expire = datetime.now(timezone.utc) + timedelta(minutes=expire_minutes)
 
-    payload.update({
-        "exp": expire,
-        "jti": str(uuid.uuid4()),
-    })
+    payload.update(
+        {
+            "exp": expire,
+            "jti": str(uuid.uuid4()),
+        }
+    )
 
     return jwt.encode(
         payload,
         settings.secret_key,
         algorithm=settings.algorithm,
     )
+
 
 def decode_access_token(token: str) -> Optional[dict]:
     try:

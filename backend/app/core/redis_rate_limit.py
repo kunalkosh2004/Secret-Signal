@@ -13,11 +13,11 @@ from app.core.redis import redis_client
 
 # Default limits: (max_requests, window_seconds)
 DEFAULT_LIMITS = {
-    "chat_message": (30, 60),       # 30 messages per minute
-    "vote": (5, 60),                # 5 votes per minute
-    "api_auth": (10, 60),           # 10 auth attempts per minute
-    "api_general": (100, 60),       # 100 API calls per minute
-    "ws_connect": (20, 60),         # 20 WS connections per minute
+    "chat_message": (30, 60),  # 30 messages per minute
+    "vote": (5, 60),  # 5 votes per minute
+    "api_auth": (10, 60),  # 10 auth attempts per minute
+    "api_general": (100, 60),  # 100 API calls per minute
+    "ws_connect": (20, 60),  # 20 WS connections per minute
 }
 
 
@@ -87,7 +87,9 @@ async def get_rate_limit_info(
         if window_seconds is None:
             window_seconds = defaults[1]
 
-    allowed, remaining = await check_rate_limit(scope, identifier, max_requests, window_seconds)
+    allowed, remaining = await check_rate_limit(
+        scope, identifier, max_requests, window_seconds
+    )
     return {
         "allowed": allowed,
         "remaining": remaining,

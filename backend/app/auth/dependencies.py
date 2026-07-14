@@ -3,6 +3,7 @@ from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 from app.auth.security import decode_access_token
+
 # from app.users.repository import user_repository
 from app.users.models import User
 from app.core.exceptions import UnauthorizedError, ForbiddenError
@@ -39,6 +40,7 @@ async def get_current_user(
         raise UnauthorizedError()
 
     return user
+
 
 async def require_active_user(
     current_user: User = Depends(get_current_user),

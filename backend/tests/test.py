@@ -17,11 +17,7 @@ async def listen_to_events(
     token: str,
     connected_event: asyncio.Event,
 ):
-    url = (
-        f"ws://127.0.0.1:8000/ws"
-        f"?token={token}"
-        f"&room_code={ROOM_CODE}"
-    )
+    url = f"ws://127.0.0.1:8000/ws?token={token}&room_code={ROOM_CODE}"
 
     async with websockets.connect(url) as websocket:
         print(f"{name}: Connected")
@@ -46,9 +42,7 @@ async def listen_to_events(
 
             data = json.loads(message)
 
-            print(
-                f"\n{name}: Received"
-            )
+            print(f"\n{name}: Received")
 
             print(
                 json.dumps(
@@ -59,10 +53,7 @@ async def listen_to_events(
 
 
 def start_game_request():
-    url = (
-        f"http://127.0.0.1:8000"
-        f"/api/v1/games/{ROOM_CODE}/start"
-    )
+    url = f"http://127.0.0.1:8000/api/v1/games/{ROOM_CODE}/start"
 
     request = urllib.request.Request(
         url=url,
@@ -124,9 +115,7 @@ async def main():
 
     await asyncio.sleep(1)
 
-    await asyncio.to_thread(
-        start_game_request
-    )
+    await asyncio.to_thread(start_game_request)
 
     await asyncio.gather(*tasks)
 

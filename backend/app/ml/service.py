@@ -31,27 +31,23 @@ BEST_MODEL_META_PATH = os.path.join(MODEL_DIR, "best_model.json")
 
 EMOJI_PATTERN = re.compile(
     "["
-    "\U0001F600-\U0001F64F"
-    "\U0001F300-\U0001F5FF"
-    "\U0001F680-\U0001F6FF"
-    "\U0001F1E0-\U0001F1FF"
-    "\U00002702-\U000027B0"
-    "\U000024C2-\U0001F251"
+    "\U0001f600-\U0001f64f"
+    "\U0001f300-\U0001f5ff"
+    "\U0001f680-\U0001f6ff"
+    "\U0001f1e0-\U0001f1ff"
+    "\U00002702-\U000027b0"
+    "\U000024c2-\U0001f251"
     "]+",
     flags=re.UNICODE,
 )
 
 
 MODEL_REGISTRY = {
-    "random_forest": RandomForestClassifier(
-        n_estimators=100, random_state=42
-    ),
+    "random_forest": RandomForestClassifier(n_estimators=100, random_state=42),
     "logistic_regression": LogisticRegression(
         max_iter=1000, random_state=42, class_weight="balanced"
     ),
-    "gradient_boosting": GradientBoostingClassifier(
-        n_estimators=100, random_state=42
-    ),
+    "gradient_boosting": GradientBoostingClassifier(n_estimators=100, random_state=42),
     "svm": SVC(
         kernel="rbf",
         probability=True,
@@ -150,23 +146,15 @@ def extract_features(messages: list[dict]) -> dict:
         features[user_id] = {
             "total_messages": total,
             "messages_by_phase": dict(messages_by_phase),
-            "avg_message_length": (
-                float(np.mean(lengths)) if lengths else 0.0
-            ),
+            "avg_message_length": (float(np.mean(lengths)) if lengths else 0.0),
             "question_ratio": (
-                question_count / text_message_count
-                if text_message_count > 0
-                else 0.0
+                question_count / text_message_count if text_message_count > 0 else 0.0
             ),
             "caps_ratio": (
-                caps_count / text_message_count
-                if text_message_count > 0
-                else 0.0
+                caps_count / text_message_count if text_message_count > 0 else 0.0
             ),
             "emoji_ratio": (
-                emoji_count / text_message_count
-                if text_message_count > 0
-                else 0.0
+                emoji_count / text_message_count if text_message_count > 0 else 0.0
             ),
             "unique_phases_active_in": len(phases_active),
             "interaction_message_ratio": (
@@ -175,29 +163,19 @@ def extract_features(messages: list[dict]) -> dict:
                 else 0.0
             ),
             "discussion_message_ratio": (
-                discussion_count / text_message_count
-                if text_message_count > 0
-                else 0.0
+                discussion_count / text_message_count if text_message_count > 0 else 0.0
             ),
             "voting_message_ratio": (
-                voting_count / text_message_count
-                if text_message_count > 0
-                else 0.0
+                voting_count / text_message_count if text_message_count > 0 else 0.0
             ),
             "avg_words_per_message": (
                 float(np.mean(word_counts)) if word_counts else 0.0
             ),
             # Social / reply features
             "reply_ratio": reply_count / effective_total,
-            "reply_to_coordinator_ratio": (
-                reply_to_coordinator / effective_total
-            ),
-            "reply_to_detective_ratio": (
-                reply_to_detective / effective_total
-            ),
-            "reply_to_citizen_ratio": (
-                reply_to_citizen / effective_total
-            ),
+            "reply_to_coordinator_ratio": (reply_to_coordinator / effective_total),
+            "reply_to_detective_ratio": (reply_to_detective / effective_total),
+            "reply_to_citizen_ratio": (reply_to_citizen / effective_total),
             # Reaction features
             "reaction_event_ratio": reaction_events / effective_total,
             "unique_reaction_emoji_count": len(unique_reaction_emojis),
@@ -214,25 +192,27 @@ def _features_to_vector(features: dict) -> np.ndarray:
     Drops messages_by_phase (dict) and keeps only scalar features
     in a fixed order.
     """
-    return np.array([
-        features["total_messages"],
-        features["avg_message_length"],
-        features["question_ratio"],
-        features["caps_ratio"],
-        features["emoji_ratio"],
-        features["unique_phases_active_in"],
-        features["interaction_message_ratio"],
-        features["discussion_message_ratio"],
-        features["voting_message_ratio"],
-        features["avg_words_per_message"],
-        features["reply_ratio"],
-        features["reply_to_coordinator_ratio"],
-        features["reply_to_detective_ratio"],
-        features["reply_to_citizen_ratio"],
-        features["reaction_event_ratio"],
-        features["unique_reaction_emoji_count"],
-        features["text_message_ratio"],
-    ])
+    return np.array(
+        [
+            features["total_messages"],
+            features["avg_message_length"],
+            features["question_ratio"],
+            features["caps_ratio"],
+            features["emoji_ratio"],
+            features["unique_phases_active_in"],
+            features["interaction_message_ratio"],
+            features["discussion_message_ratio"],
+            features["voting_message_ratio"],
+            features["avg_words_per_message"],
+            features["reply_ratio"],
+            features["reply_to_coordinator_ratio"],
+            features["reply_to_detective_ratio"],
+            features["reply_to_citizen_ratio"],
+            features["reaction_event_ratio"],
+            features["unique_reaction_emoji_count"],
+            features["text_message_ratio"],
+        ]
+    )
 
 
 FEATURE_NAMES = [
@@ -272,14 +252,16 @@ async def train_model(db: AsyncSession) -> dict:
 
     for msg in all_messages:
         key = (msg.game_id, msg.user_id)
-        grouped[key].append({
-            "user_id": msg.user_id,
-            "role": msg.role,
-            "phase": msg.phase,
-            "content": msg.content,
-            "has_reply": getattr(msg, "has_reply", False),
-            "reply_to_role": getattr(msg, "reply_to_role", None),
-        })
+        grouped[key].append(
+            {
+                "user_id": msg.user_id,
+                "role": msg.role,
+                "phase": msg.phase,
+                "content": msg.content,
+                "has_reply": getattr(msg, "has_reply", False),
+                "reply_to_role": getattr(msg, "reply_to_role", None),
+            }
+        )
         role_map[key] = msg.role
 
     X_list: list[np.ndarray] = []
@@ -303,7 +285,10 @@ async def train_model(db: AsyncSession) -> dict:
         }
 
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42,
+        X,
+        y,
+        test_size=0.2,
+        random_state=42,
         stratify=y if len(np.unique(y)) > 1 else None,
     )
 
@@ -326,20 +311,25 @@ async def train_model(db: AsyncSession) -> dict:
             f1 = float(f1_score(y_test, y_pred, zero_division=0))
 
             cv_scores = cross_val_score(
-                model, X_train, y_train, cv=min(3, len(np.unique(y_train))),
+                model,
+                X_train,
+                y_train,
+                cv=min(3, len(np.unique(y_train))),
                 scoring="accuracy",
             )
             cv_mean = float(cv_scores.mean())
 
             score = (accuracy + f1 + cv_mean) / 3
 
-            all_results.append({
-                "model": name,
-                "accuracy": round(accuracy, 4),
-                "f1_score": round(f1, 4),
-                "cv_accuracy": round(cv_mean, 4),
-                "combined_score": round(score, 4),
-            })
+            all_results.append(
+                {
+                    "model": name,
+                    "accuracy": round(accuracy, 4),
+                    "f1_score": round(f1, 4),
+                    "cv_accuracy": round(cv_mean, 4),
+                    "combined_score": round(score, 4),
+                }
+            )
 
             with mlflow.start_run(run_name=name):
                 mlflow.log_param("model", name)
@@ -360,10 +350,12 @@ async def train_model(db: AsyncSession) -> dict:
 
         except Exception as e:
             logger.warning("Model %s failed: %s", name, e)
-            all_results.append({
-                "model": name,
-                "error": str(e),
-            })
+            all_results.append(
+                {
+                    "model": name,
+                    "error": str(e),
+                }
+            )
 
     if best_model is None:
         return {"error": "All models failed during training"}
@@ -379,6 +371,7 @@ async def train_model(db: AsyncSession) -> dict:
     }
     with open(BEST_MODEL_META_PATH, "w") as f:
         import json
+
         json.dump(best_meta, f, indent=2)
 
     with mlflow.start_run(run_name=f"best_{best_name}"):
@@ -391,7 +384,10 @@ async def train_model(db: AsyncSession) -> dict:
 
     logger.info(
         "Best model: %s with accuracy=%.4f, f1=%.4f on %d samples",
-        best_name, best_accuracy, best_f1, len(X),
+        best_name,
+        best_accuracy,
+        best_f1,
+        len(X),
     )
 
     return {
@@ -400,8 +396,7 @@ async def train_model(db: AsyncSession) -> dict:
         "model_path": MODEL_PATH,
         "samples_used": len(X),
         "all_results": [
-            {k: v for k, v in r.items() if k != "model"}
-            for r in all_results
+            {k: v for k, v in r.items() if k != "model"} for r in all_results
         ],
     }
 
@@ -435,21 +430,19 @@ async def predict_coordinator(db: AsyncSession, game_id: int) -> dict:
 
     grouped: dict[int, list[dict]] = defaultdict(list)
     for msg in messages:
-        grouped[msg.user_id].append({
-            "user_id": msg.user_id,
-            "role": msg.role,
-            "phase": msg.phase,
-            "content": msg.content,
-            "has_reply": getattr(msg, "has_reply", False),
-            "reply_to_role": getattr(msg, "reply_to_role", None),
-        })
+        grouped[msg.user_id].append(
+            {
+                "user_id": msg.user_id,
+                "role": msg.role,
+                "phase": msg.phase,
+                "content": msg.content,
+                "has_reply": getattr(msg, "has_reply", False),
+                "reply_to_role": getattr(msg, "reply_to_role", None),
+            }
+        )
 
     player_features = extract_features(
-        [
-            msg
-            for user_msgs in grouped.values()
-            for msg in user_msgs
-        ]
+        [msg for user_msgs in grouped.values() for msg in user_msgs]
     )
 
     results: dict[int, dict] = {}

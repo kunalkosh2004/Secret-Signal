@@ -45,6 +45,7 @@ logger = logging.getLogger(__name__)
 # Feature extraction
 # ---------------------------------------------------------------------------
 
+
 def _extract_player_features(
     player_events: list[dict],
     all_events_by_others: dict[int, list[dict]],
@@ -70,14 +71,37 @@ def _extract_player_features(
     caps_count = 0
 
     TOPIC_SHIFTERS = [
-        "but", "however", "actually", "wait", "no", "well",
-        "okay so", "let me", "i think", "what if", "hang on",
-        "hold on", "sorry", "btw", "by the way", "anyway",
+        "but",
+        "however",
+        "actually",
+        "wait",
+        "no",
+        "well",
+        "okay so",
+        "let me",
+        "i think",
+        "what if",
+        "hang on",
+        "hold on",
+        "sorry",
+        "btw",
+        "by the way",
+        "anyway",
     ]
     _QUESTION_MARKERS = [
-        "who", "what", "where", "when", "why", "how",
-        "do you", "did you", "can you", "could you",
-        "is there", "are you", "don't you",
+        "who",
+        "what",
+        "where",
+        "when",
+        "why",
+        "how",
+        "do you",
+        "did you",
+        "can you",
+        "could you",
+        "is there",
+        "are you",
+        "don't you",
     ]
 
     for ev in player_events:
@@ -126,9 +150,7 @@ def _extract_player_features(
             if ev.get("reply_to_user_id") == player_id:
                 interaction_partners.add(other_id)
 
-    interaction_centrality = (
-        len(interaction_partners) / max(total_players - 1, 1)
-    )
+    interaction_centrality = len(interaction_partners) / max(total_players - 1, 1)
 
     # --- Conversation initiation ---
     # Count messages that start a new thread (not replies)
@@ -175,6 +197,7 @@ def _empty_features() -> dict:
 # ---------------------------------------------------------------------------
 # Suspicion scoring (rule-based)
 # ---------------------------------------------------------------------------
+
 
 def _compute_suspicion_score(
     features: dict,
@@ -223,9 +246,7 @@ def _compute_suspicion_score(
     score += centrality_score
     unique_repliers = features["unique_repliers"]
     if unique_repliers >= 3:
-        reasons.append(
-            f"Received replies from {unique_repliers} unique players"
-        )
+        reasons.append(f"Received replies from {unique_repliers} unique players")
 
     # --- Factor 4: Topic shifting (0-15 points) ---
     topic_count = features["topic_shift_count"]
@@ -295,6 +316,7 @@ def _compute_suspicion_score(
 # Behavior metrics formatting
 # ---------------------------------------------------------------------------
 
+
 def _build_behavior_metrics(
     features: dict,
     all_features: dict[int, dict],
@@ -307,48 +329,62 @@ def _build_behavior_metrics(
         max_val = max(all_vals) if all_vals else 1
         return val / max_val if max_val > 0 else 0
 
-    metrics.append(BehaviorMetric(
-        name="message_count",
-        label="Messages Sent",
-        value=features["total_messages"],
-        normalized=_norm(features["total_messages"], "total_messages"),
-    ))
-    metrics.append(BehaviorMetric(
-        name="avg_message_length",
-        label="Avg Message Length",
-        value=features["avg_message_length"],
-        normalized=_norm(features["avg_message_length"], "avg_message_length"),
-    ))
-    metrics.append(BehaviorMetric(
-        name="question_ratio",
-        label="Question Ratio",
-        value=features["question_ratio"],
-        normalized=features["question_ratio"],
-    ))
-    metrics.append(BehaviorMetric(
-        name="topic_shifts",
-        label="Topic Shifts",
-        value=features["topic_shift_count"],
-        normalized=_norm(features["topic_shift_count"], "topic_shift_count"),
-    ))
-    metrics.append(BehaviorMetric(
-        name="interaction_centrality",
-        label="Interaction Centrality",
-        value=features["interaction_centrality"],
-        normalized=features["interaction_centrality"],
-    ))
-    metrics.append(BehaviorMetric(
-        name="replies_received",
-        label="Replies Received",
-        value=features["replies_received"],
-        normalized=_norm(features["replies_received"], "replies_received"),
-    ))
-    metrics.append(BehaviorMetric(
-        name="conversation_starts",
-        label="Conversation Starts",
-        value=features["conversation_starts"],
-        normalized=_norm(features["conversation_starts"], "conversation_starts"),
-    ))
+    metrics.append(
+        BehaviorMetric(
+            name="message_count",
+            label="Messages Sent",
+            value=features["total_messages"],
+            normalized=_norm(features["total_messages"], "total_messages"),
+        )
+    )
+    metrics.append(
+        BehaviorMetric(
+            name="avg_message_length",
+            label="Avg Message Length",
+            value=features["avg_message_length"],
+            normalized=_norm(features["avg_message_length"], "avg_message_length"),
+        )
+    )
+    metrics.append(
+        BehaviorMetric(
+            name="question_ratio",
+            label="Question Ratio",
+            value=features["question_ratio"],
+            normalized=features["question_ratio"],
+        )
+    )
+    metrics.append(
+        BehaviorMetric(
+            name="topic_shifts",
+            label="Topic Shifts",
+            value=features["topic_shift_count"],
+            normalized=_norm(features["topic_shift_count"], "topic_shift_count"),
+        )
+    )
+    metrics.append(
+        BehaviorMetric(
+            name="interaction_centrality",
+            label="Interaction Centrality",
+            value=features["interaction_centrality"],
+            normalized=features["interaction_centrality"],
+        )
+    )
+    metrics.append(
+        BehaviorMetric(
+            name="replies_received",
+            label="Replies Received",
+            value=features["replies_received"],
+            normalized=_norm(features["replies_received"], "replies_received"),
+        )
+    )
+    metrics.append(
+        BehaviorMetric(
+            name="conversation_starts",
+            label="Conversation Starts",
+            value=features["conversation_starts"],
+            normalized=_norm(features["conversation_starts"], "conversation_starts"),
+        )
+    )
 
     return metrics
 
@@ -356,6 +392,7 @@ def _build_behavior_metrics(
 # ---------------------------------------------------------------------------
 # Main service
 # ---------------------------------------------------------------------------
+
 
 async def generate_signal_report(
     db: AsyncSession,
@@ -389,11 +426,13 @@ async def generate_signal_report(
         if event.event_type == "message_sent":
             uid = event.actor_id
             payload = event.payload or {}
-            messages_by_player[uid].append({
-                "content": payload.get("content", ""),
-                "reply_to_user_id": payload.get("reply_to_user_id"),
-                "round": event.round_number,
-            })
+            messages_by_player[uid].append(
+                {
+                    "content": payload.get("content", ""),
+                    "reply_to_user_id": payload.get("reply_to_user_id"),
+                    "round": event.round_number,
+                }
+            )
 
     # Filter to current round only (more data = more accurate later)
     current_round = game.round_number
@@ -423,7 +462,8 @@ async def generate_signal_report(
 
     # Compute suspicion for each OTHER player (not the detective)
     detective_player = next(
-        (gp for gp in game_players if gp.user_id == detective_id), None,
+        (gp for gp in game_players if gp.user_id == detective_id),
+        None,
     )
     if detective_player is None:
         raise ValueError("Detective not found in game")
@@ -450,15 +490,17 @@ async def generate_signal_report(
 
         metrics = _build_behavior_metrics(features, all_features)
 
-        player_suspicions.append(PlayerSuspicion(
-            user_id=gp.user_id,
-            username=user_map.get(gp.user_id, str(gp.user_id)),
-            role_visible="unknown",
-            suspicion_score=suspicion,
-            confidence=confidence,
-            reasons=reasons,
-            behavior_metrics=metrics,
-        ))
+        player_suspicions.append(
+            PlayerSuspicion(
+                user_id=gp.user_id,
+                username=user_map.get(gp.user_id, str(gp.user_id)),
+                role_visible="unknown",
+                suspicion_score=suspicion,
+                confidence=confidence,
+                reasons=reasons,
+                behavior_metrics=metrics,
+            )
+        )
 
     # Sort by suspicion descending
     player_suspicions.sort(key=lambda p: p.suspicion_score, reverse=True)

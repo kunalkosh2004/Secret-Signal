@@ -44,6 +44,7 @@ from google.oauth2 import id_token
 from app.auth.oauth.schemas import GoogleUserInfo
 from app.core.config import settings
 
+
 def build_authorization_url(
     state: str,
     redirect_uri: str = None,
@@ -62,10 +63,8 @@ def build_authorization_url(
 
     query_string = urlencode(params)
 
-    return (
-        "https://accounts.google.com/o/oauth2/v2/auth"
-        f"?{query_string}"
-    )
+    return f"https://accounts.google.com/o/oauth2/v2/auth?{query_string}"
+
 
 async def verify_google_token(
     code: str,

@@ -10,11 +10,7 @@ async def get_by_room_id(
     db: AsyncSession,
     room_id: int,
 ) -> Optional[Game]:
-    result = await db.execute(
-        select(Game).where(
-            Game.room_id == room_id
-        )
-    )
+    result = await db.execute(select(Game).where(Game.room_id == room_id))
 
     return result.scalar_one_or_none()
 
@@ -60,21 +56,19 @@ async def add_game_player(
 
     return game_player
 
+
 async def get_game_players(
     db: AsyncSession,
     game_id: int,
 ) -> list[GamePlayer]:
     result = await db.execute(
         select(GamePlayer)
-        .where(
-            GamePlayer.game_id == game_id
-        )
-        .order_by(
-            GamePlayer.id.asc()
-        )
+        .where(GamePlayer.game_id == game_id)
+        .order_by(GamePlayer.id.asc())
     )
 
     return list(result.scalars().all())
+
 
 async def get_game_player(
     db: AsyncSession,
@@ -90,17 +84,15 @@ async def get_game_player(
 
     return result.scalar_one_or_none()
 
+
 async def get_by_id(
     db: AsyncSession,
     game_id: int,
 ) -> Optional[Game]:
-    result = await db.execute(
-        select(Game).where(
-            Game.id == game_id
-        )
-    )
+    result = await db.execute(select(Game).where(Game.id == game_id))
 
     return result.scalar_one_or_none()
+
 
 async def get_player_by_role(
     db: AsyncSession,
@@ -121,10 +113,6 @@ async def get_game_players_for_user(
     db: AsyncSession,
     user_id: int,
 ) -> list[GamePlayer]:
-    result = await db.execute(
-        select(GamePlayer).where(
-            GamePlayer.user_id == user_id
-        )
-    )
+    result = await db.execute(select(GamePlayer).where(GamePlayer.user_id == user_id))
 
     return list(result.scalars().all())

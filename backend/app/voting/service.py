@@ -67,8 +67,7 @@ async def tally_votes(
         round_number=round_number,
         total_votes=total_votes,
         tallies=[
-            VoteTally(target_user_id=user_id, count=count)
-            for user_id, count in tallies
+            VoteTally(target_user_id=user_id, count=count) for user_id, count in tallies
         ],
         coordinator_identified=coordinator_identified,
         coordinator_user_id=coordinator_user_id,

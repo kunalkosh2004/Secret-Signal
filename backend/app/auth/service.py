@@ -32,10 +32,7 @@ async def generate_unique_username(
     while await get_by_username(db, username) is not None:
         suffix = f"_{counter}"
 
-        username = (
-            base_username[: 30 - len(suffix)]
-            + suffix
-        )
+        username = base_username[: 30 - len(suffix)] + suffix
 
         counter += 1
 
@@ -80,7 +77,8 @@ async def signup(
         access_token=access_token,
         user=user,
     )
-  
+
+
 async def login(
     db: AsyncSession,
     request: LoginRequest,
@@ -113,6 +111,7 @@ async def login(
         access_token=access_token,
         user=user,
     )
+
 
 async def handle_google_callback(
     db: AsyncSession,
@@ -197,6 +196,7 @@ async def handle_google_callback(
         access_token=access_token,
         user=user,
     )
+
 
 async def handle_google_link_callback(
     db: AsyncSession,

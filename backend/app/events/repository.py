@@ -20,8 +20,9 @@ async def create_event(
     """
     # Get the next sequence number for this game
     result = await db.execute(
-        select(func.coalesce(func.max(GameEvent.sequence_number), 0))
-        .where(GameEvent.game_id == game_id)
+        select(func.coalesce(func.max(GameEvent.sequence_number), 0)).where(
+            GameEvent.game_id == game_id
+        )
     )
     max_seq = result.scalar()
     next_seq = max_seq + 1
@@ -100,7 +101,6 @@ async def get_game_events_by_round(
 async def get_event_count(db: AsyncSession, game_id: int) -> int:
     """Get the total number of events for a game."""
     result = await db.execute(
-        select(func.count(GameEvent.id))
-        .where(GameEvent.game_id == game_id)
+        select(func.count(GameEvent.id)).where(GameEvent.game_id == game_id)
     )
     return result.scalar() or 0

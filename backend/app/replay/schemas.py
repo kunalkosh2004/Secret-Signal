@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field
 # Replay Event — the atomic unit of the replay timeline
 # ---------------------------------------------------------------------------
 
+
 class ReplayEvent(BaseModel):
     """A single event in the replay timeline.
 
@@ -46,6 +47,7 @@ class ReplayEvent(BaseModel):
 # Replay Player — snapshot of a player's role and identity
 # ---------------------------------------------------------------------------
 
+
 class ReplayPlayer(BaseModel):
     user_id: int
     username: str
@@ -56,6 +58,7 @@ class ReplayPlayer(BaseModel):
 # ---------------------------------------------------------------------------
 # Replay Game Info — metadata about the game being replayed
 # ---------------------------------------------------------------------------
+
 
 class ReplayGameInfo(BaseModel):
     game_id: int
@@ -74,6 +77,7 @@ class ReplayGameInfo(BaseModel):
 # Replay Timeline — the full replay data package
 # ---------------------------------------------------------------------------
 
+
 class ReplayTimeline(BaseModel):
     """Complete replay data for a game.
 
@@ -90,6 +94,7 @@ class ReplayTimeline(BaseModel):
 # ---------------------------------------------------------------------------
 # Replay State Snapshot — reconstructed state at a specific event
 # ---------------------------------------------------------------------------
+
 
 class ReplayStateSnapshot(BaseModel):
     """The reconstructed game state at a specific sequence number.

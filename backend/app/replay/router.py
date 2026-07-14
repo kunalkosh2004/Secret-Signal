@@ -52,7 +52,9 @@ async def get_replay_timeline(
         raise HTTPException(status_code=404, detail="Room not found")
 
     membership = await room_repository.get_player(
-        db, room_id=room.id, user_id=current_user.id,
+        db,
+        room_id=room.id,
+        user_id=current_user.id,
     )
     if membership is None:
         raise HTTPException(
@@ -90,7 +92,9 @@ async def get_state_snapshot(
         raise HTTPException(status_code=404, detail="Room not found")
 
     membership = await room_repository.get_player(
-        db, room_id=room.id, user_id=current_user.id,
+        db,
+        room_id=room.id,
+        user_id=current_user.id,
     )
     if membership is None:
         raise HTTPException(status_code=403, detail="Not a member of this room")
@@ -124,12 +128,15 @@ async def get_raw_events(
         raise HTTPException(status_code=404, detail="Room not found")
 
     membership = await room_repository.get_player(
-        db, room_id=room.id, user_id=current_user.id,
+        db,
+        room_id=room.id,
+        user_id=current_user.id,
     )
     if membership is None:
         raise HTTPException(status_code=403, detail="Not a member of this room")
 
     from app.events import repository as event_repository
+
     events = await event_repository.get_game_events(db, game_id)
 
     return [

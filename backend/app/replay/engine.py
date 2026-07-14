@@ -92,6 +92,7 @@ EVENT_LABELS: dict[str, str] = {
 # Replay Engine
 # ---------------------------------------------------------------------------
 
+
 class ReplayEngine:
     """Processes immutable events to reconstruct game history.
 
@@ -118,6 +119,7 @@ class ReplayEngine:
 
         room = None
         from app.rooms import repository as room_repository
+
         room = await room_repository.get_by_id(db, game.room_id)
 
         # Load all events in deterministic order
@@ -155,19 +157,21 @@ class ReplayEngine:
             category = EVENT_CATEGORIES.get(event.event_type, "other")
             label = EVENT_LABELS.get(event.event_type, event.event_type)
 
-            replay_events.append(ReplayEvent(
-                sequence_number=event.sequence_number,
-                event_type=event.event_type,
-                actor_id=event.actor_id,
-                actor_name=actor_name,
-                round_number=event.round_number,
-                payload=event.payload or {},
-                metadata=event.event_metadata or {},
-                timestamp=event.created_at,
-                relative_time_seconds=relative_time,
-                label=label,
-                category=category,
-            ))
+            replay_events.append(
+                ReplayEvent(
+                    sequence_number=event.sequence_number,
+                    event_type=event.event_type,
+                    actor_id=event.actor_id,
+                    actor_name=actor_name,
+                    round_number=event.round_number,
+                    payload=event.payload or {},
+                    metadata=event.event_metadata or {},
+                    timestamp=event.created_at,
+                    relative_time_seconds=relative_time,
+                    label=label,
+                    category=category,
+                )
+            )
 
         # Determine winner from game_over event
         winner = None
@@ -256,12 +260,14 @@ class ReplayEngine:
         players = []
         for gp in game_players:
             user = await user_repository.get_by_id(db, gp.user_id)
-            players.append(ReplayPlayer(
-                user_id=gp.user_id,
-                username=user.username if user else str(gp.user_id),
-                role=gp.role,
-                score=gp.score,
-            ))
+            players.append(
+                ReplayPlayer(
+                    user_id=gp.user_id,
+                    username=user.username if user else str(gp.user_id),
+                    role=gp.role,
+                    score=gp.score,
+                )
+            )
 
         return ReplayStateSnapshot(
             sequence_number=sequence_number,
