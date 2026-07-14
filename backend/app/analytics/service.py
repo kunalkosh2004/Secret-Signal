@@ -6,6 +6,8 @@ from app.game_engine import repository as game_repository
 from app.voting import repository as vote_repository
 from app.missions import repository as mission_repository
 from app.users import repository as user_repository
+from app.chat import repository as chat_repository
+from app.chat import reaction_repository
 
 
 @dataclass
@@ -20,6 +22,12 @@ class PlayerBehaviorProfile:
     suspicion_score: float = 0.0
     voting_accuracy: float = 0.0
     round_breakdown: list[dict] = field(default_factory=list)
+    reply_count: int = 0
+    reaction_count: int = 0
+    reactions_received: int = 0
+    unique_emojis_used: int = 0
+    reply_to_coordinator: int = 0
+    reply_to_citizen: int = 0
 
 
 @dataclass
@@ -32,6 +40,7 @@ class GameAnalysis:
     summary: str
     voting_patterns: dict
     coordination_score: float = 0.0
+    social_graph: dict = field(default_factory=dict)
 
 
 QUESTION_MARKERS = [
@@ -97,6 +106,7 @@ def _count_topic_shifts(text: str) -> int:
 def _calculate_voting_accuracy(
     votes_rounds: list[dict],
     coordinator_user_id: int,
+    voter_user_id: int | None = None,
 ) -> float:
     if not votes_rounds:
         return 0.0
@@ -109,19 +119,30 @@ def _calculate_voting_accuracy(
         if not votes:
             continue
 
-        vote_counts: dict[int, int] = {}
-        for vote in votes:
-            target = vote.get("target_user_id")
-            if target:
-                vote_counts[target] = vote_counts.get(target, 0) + 1
+        if voter_user_id is not None:
+            my_vote = next(
+                (v for v in votes if v.get("voter_user_id") == voter_user_id),
+                None,
+            )
+            if my_vote is None:
+                continue
+            total += 1
+            if my_vote.get("target_user_id") == coordinator_user_id:
+                correct += 1
+        else:
+            vote_counts: dict[int, int] = {}
+            for vote in votes:
+                target = vote.get("target_user_id")
+                if target:
+                    vote_counts[target] = vote_counts.get(target, 0) + 1
 
-        if not vote_counts:
-            continue
+            if not vote_counts:
+                continue
 
-        total += 1
-        top_target = max(vote_counts, key=vote_counts.get)
-        if top_target == coordinator_user_id:
-            correct += 1
+            total += 1
+            top_target = max(vote_counts, key=vote_counts.get)
+            if top_target == coordinator_user_id:
+                correct += 1
 
     return correct / total if total > 0 else 0.0
 
@@ -165,6 +186,17 @@ def _calculate_player_suspicion(
         score -= 10.0
     elif profile.voting_accuracy < 0.3:
         score += 10.0
+
+    # Reply/reaction suspicion signals
+    total = profile.message_count if profile.message_count > 0 else 1
+    reply_ratio = profile.reply_count / total
+    if reply_ratio > 0.5:
+        score += 10.0
+    elif reply_ratio < 0.1:
+        score += 5.0
+
+    if profile.reaction_count > 3:
+        score -= 5.0
 
     return max(0.0, min(100.0, score))
 
@@ -244,7 +276,7 @@ async def analyze_game(
         coord_uid = coord.user_id if coord else -1
 
         voting_accuracy = _calculate_voting_accuracy(
-            votes_all_rounds, coord_uid
+            votes_all_rounds, coord_uid, voter_user_id=uid
         )
 
         round_breakdown = []
@@ -268,6 +300,60 @@ async def analyze_game(
         user = await user_repository.get_by_id(db, uid)
         username = user.username if user else str(uid)
 
+        # --- Reply / reaction metrics for this player ---
+        player_room_msgs = await chat_repository.get_room_messages(
+            db, room_id=game.room_id, limit=500,
+        )
+        # Messages sent by this player (as Message objects)
+        player_sent = [
+            m for m, _ in player_room_msgs if m.user_id == uid
+        ]
+        player_msg_ids = [m.id for m in player_sent]
+
+        reply_count = 0
+        reply_to_coordinator = 0
+        reply_to_citizen = 0
+        for m in player_sent:
+            if m.reply_to_message_id is not None:
+                reply_count += 1
+                # Look up the replied-to message's author role
+                orig = next(
+                    (msg for msg, _ in player_room_msgs
+                     if msg.id == m.reply_to_message_id),
+                    None,
+                )
+                if orig is not None:
+                    orig_player = next(
+                        (gp for gp in game_players
+                         if gp.user_id == orig.user_id),
+                        None,
+                    )
+                    if orig_player is not None:
+                        if orig_player.role == "coordinator":
+                            reply_to_coordinator += 1
+                        else:
+                            reply_to_citizen += 1
+
+        # Reactions given by this player
+        all_reactions_by_player: list = []
+        for m in player_sent:
+            rxns = await reaction_repository.get_reactions_for_message(
+                db, message_id=m.id,
+            )
+            all_reactions_by_player.extend(rxns)
+
+        # Reactions received on this player's messages
+        all_reactions_received: list = []
+        for m in player_sent:
+            rxns = await reaction_repository.get_reactions_for_message(
+                db, message_id=m.id,
+            )
+            all_reactions_received.extend(rxns)
+
+        unique_emojis_used = len(
+            {r.emoji for r in all_reactions_by_player}
+        )
+
         profile = PlayerBehaviorProfile(
             user_id=uid,
             role=gp.role,
@@ -278,6 +364,12 @@ async def analyze_game(
             avg_message_length=avg_len,
             voting_accuracy=voting_accuracy,
             round_breakdown=round_breakdown,
+            reply_count=reply_count,
+            reaction_count=len(all_reactions_by_player),
+            reactions_received=len(all_reactions_received),
+            unique_emojis_used=unique_emojis_used,
+            reply_to_coordinator=reply_to_coordinator,
+            reply_to_citizen=reply_to_citizen,
         )
 
         profiles.append(profile)
@@ -377,7 +469,35 @@ async def analyze_game(
             f"highest suspicion score of {top.suspicion_score:.1f}."
         )
 
+    # Reply/reaction summary
+    most_replies = max(profiles, key=lambda p: p.reply_count, default=None)
+    most_reactions = max(profiles, key=lambda p: p.reaction_count, default=None)
+    if most_replies and most_replies.reply_count > 0:
+        summary_lines.append(
+            f"{most_replies.username} was the most active replier "
+            f"with {most_replies.reply_count} replies."
+        )
+    if most_reactions and most_reactions.reaction_count > 0:
+        summary_lines.append(
+            f"{most_reactions.username} gave the most reactions "
+            f"({most_reactions.reaction_count})."
+        )
+
     summary = " ".join(summary_lines)
+
+    # Social graph: who replies to whom, who reacts to whom
+    social_graph: dict[str, dict] = {}
+    for p in profiles:
+        social_graph[str(p.user_id)] = {
+            "username": p.username,
+            "role": p.role,
+            "reply_count": p.reply_count,
+            "reply_to_coordinator": p.reply_to_coordinator,
+            "reply_to_citizen": p.reply_to_citizen,
+            "reaction_count": p.reaction_count,
+            "reactions_received": p.reactions_received,
+            "unique_emojis_used": p.unique_emojis_used,
+        }
 
     return GameAnalysis(
         game_id=game_id,
@@ -388,4 +508,5 @@ async def analyze_game(
         summary=summary,
         voting_patterns=voting_patterns,
         coordination_score=coordination_score,
+        social_graph=social_graph,
     )

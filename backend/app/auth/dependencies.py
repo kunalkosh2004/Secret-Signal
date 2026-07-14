@@ -1,39 +1,3 @@
-"""
-FastAPI dependencies for authentication and authorization.
-
-These are used in route handlers to protect endpoints.
-
-TODO: Implement each dependency.
-
-### Authentication (WHO are you?)
-
-    async def get_current_user(
-        token: str = Depends(oauth2_scheme),
-        db: AsyncSession = Depends(get_db),
-    ) -> User:
-        Decode the JWT from the Authorization header.
-        Look up the user by the `sub` claim.
-        Raise UnauthorizedError if invalid or not found.
-
-    oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
-    This tells FastAPI to extract the token from the Authorization header:
-        Authorization: Bearer <token>
-
-### Authorization (WHAT are you allowed to do?)
-
-    async def require_active_user(current_user: User = Depends(get_current_user)) -> User:
-        Raise ForbiddenError if user.is_active is False.
-
-    (Future) async def require_room_host(...) -> None:
-        Check if the current user is the host of a specific room.
-
-### Usage in routes:
-
-    @router.get("/me")
-    async def get_me(current_user: User = Depends(get_current_user)):
-        return current_user
-"""
-
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi import Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession

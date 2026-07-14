@@ -4,12 +4,15 @@ from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.security import decode_access_token
+from app.core.redis import is_token_revoked
+from app.core.redis_rate_limit import is_rate_limited
 from app.users.models import User
 from app.users.repository import get_by_id
 from app.rooms import repository as room_repository
 from app.websocket.manager import manager
 from app.game_engine import repository as game_repository
 from app.chat import repository as chat_repository
+from app.chat import reaction_repository
 from app.users import repository as user_repository
 from app.missions.service import evaluate_message_missions
 from app.game_engine.service import check_win_condition, calculate_final_scores
@@ -19,6 +22,18 @@ from app.voting import service as voting_service
 from app.voting import repository as vote_repository
 from app.events import repository as event_repository
 from app.training import repository as training_repository
+
+# Allowed emoji reactions
+ALLOWED_EMOJIS = {"👍", "👎", "❤️", "😂", "😮", "😢", "🔥", "👀", "🎯", "✅"}
+
+# Phases where chat messages are allowed
+CHAT_ALLOWED_PHASES = {
+    GamePhase.ROLE_ASSIGNMENT.value,
+    GamePhase.INTERACTION.value,
+    GamePhase.DISCUSSION.value,
+    GamePhase.RESULT.value,
+    GamePhase.GAME_OVER.value,
+}
 
 
 async def handle_message(
@@ -119,6 +134,16 @@ async def handle_message(
             )
             return
 
+        # Rate limit: 30 messages per minute per user
+        if await is_rate_limited("chat_message", str(user_id)):
+            await websocket.send_json(
+                {
+                    "type": "ERROR",
+                    "message": "Rate limit exceeded. Please wait before sending another message.",
+                }
+            )
+            return
+
         room = await room_repository.get_by_code(
             db,
             room_code,
@@ -132,6 +157,26 @@ async def handle_message(
                 }
             )
             return
+
+        # Phase-specific validation: only allow chat during certain phases
+        game_check = await game_repository.get_by_room_id(
+            db,
+            room_id=room.id,
+        )
+        if game_check is not None and game_check.phase not in CHAT_ALLOWED_PHASES:
+            await websocket.send_json(
+                {
+                    "type": "ERROR",
+                    "message": f"Chat is not allowed during the {game_check.phase} phase",
+                }
+            )
+            return
+
+        # Extract reply_to_message_id if provided
+        reply_to_message_id = message.get("reply_to_message_id")
+        if reply_to_message_id is not None:
+            if not isinstance(reply_to_message_id, int):
+                reply_to_message_id = None
 
         updated_missions = []
         win_result = None
@@ -148,6 +193,7 @@ async def handle_message(
                     room_id=room.id,
                     user_id=user_id,
                     content=content.strip(),
+                    reply_to_message_id=reply_to_message_id,
                 )
             )
 
@@ -191,6 +237,23 @@ async def handle_message(
                     user_id=user_id,
                 )
                 if game_player is not None:
+                    has_reply = reply_to_message_id is not None
+                    reply_to_role = None
+                    if has_reply:
+                        replied_msg = await chat_repository.get_message_by_id(
+                            db, reply_to_message_id,
+                        )
+                        if replied_msg is not None:
+                            replied_player = (
+                                await game_repository.get_game_player(
+                                    db,
+                                    game_id=game.id,
+                                    user_id=replied_msg.user_id,
+                                )
+                            )
+                            if replied_player is not None:
+                                reply_to_role = replied_player.role
+
                     await training_repository.create_training_message(
                         db=db,
                         game_id=game.id,
@@ -199,6 +262,8 @@ async def handle_message(
                         phase=game.phase,
                         content=content.strip(),
                         round_number=game.round_number,
+                        has_reply=has_reply,
+                        reply_to_role=reply_to_role,
                     )
 
             # ------------------------------------------
@@ -346,6 +411,7 @@ async def handle_message(
                     "user_id": user_id,
                     "username": username,
                     "content": content.strip(),
+                    "reply_to_message_id": chat_message.reply_to_message_id,
                     "created_at": (
                         chat_message.created_at.isoformat()
                     ),
@@ -428,6 +494,16 @@ async def handle_message(
                         "CAST_VOTE requires "
                         "payload.target_user_id as integer"
                     ),
+                }
+            )
+            return
+
+        # Rate limit: 5 votes per minute per user
+        if await is_rate_limited("vote", str(user_id)):
+            await websocket.send_json(
+                {
+                    "type": "ERROR",
+                    "message": "Rate limit exceeded. Please wait before voting again.",
                 }
             )
             return
@@ -620,13 +696,180 @@ async def handle_message(
             # Start timer for result phase
             from app.game_engine.timer import start_phase_timer
             from app.db.session import SessionLocal
-            await start_phase_timer(
+            start_phase_timer(
                 db_factory=SessionLocal,
                 game_id=game.id,
                 room_code=room_code,
                 phase=GamePhase.RESULT.value,
             )
         
+        return
+
+    # --------------------------------------------------
+    # ADD_REACTION
+    # --------------------------------------------------
+
+    if event_type == "ADD_REACTION":
+        payload = message.get("payload", {})
+        message_id = payload.get("message_id")
+        emoji = payload.get("emoji", "").strip()
+
+        if not isinstance(message_id, int):
+            await websocket.send_json(
+                {
+                    "type": "ERROR",
+                    "message": "ADD_REACTION requires payload.message_id as integer",
+                }
+            )
+            return
+
+        if not emoji or emoji not in ALLOWED_EMOJIS:
+            await websocket.send_json(
+                {
+                    "type": "ERROR",
+                    "message": f"ADD_REACTION requires a valid emoji. Allowed: {', '.join(ALLOWED_EMOJIS)}",
+                }
+            )
+            return
+
+        # Rate limit: 30 reactions per minute
+        if await is_rate_limited("chat_message", f"reaction:{user_id}"):
+            await websocket.send_json(
+                {
+                    "type": "ERROR",
+                    "message": "Rate limit exceeded. Please wait before reacting again.",
+                }
+            )
+            return
+
+        room = await room_repository.get_by_code(db, room_code)
+        if room is None:
+            await websocket.send_json({"type": "ERROR", "message": "Room not found"})
+            return
+
+        # Verify message exists in this room
+        msg = await chat_repository.get_message_by_id(db, message_id)
+        if msg is None or msg.room_id != room.id:
+            await websocket.send_json(
+                {"type": "ERROR", "message": "Message not found in this room"}
+            )
+            return
+
+        try:
+            await reaction_repository.add_reaction(
+                db=db,
+                message_id=message_id,
+                user_id=user_id,
+                emoji=emoji,
+            )
+
+            # Store training data for ML — reactions are a social signal
+            game = await game_repository.get_by_room_id(db, room_id=room.id)
+            if game is not None and game.status == "active":
+                game_player = await game_repository.get_game_player(
+                    db, game_id=game.id, user_id=user_id,
+                )
+                if game_player is not None:
+                    await training_repository.create_training_message(
+                        db=db,
+                        game_id=game.id,
+                        user_id=user_id,
+                        role=game_player.role,
+                        phase=game.phase,
+                        content=f"[reaction:{emoji}]",
+                        round_number=game.round_number,
+                    )
+
+            await db.commit()
+
+            # Get updated reaction counts
+            reaction_counts = await reaction_repository.get_reaction_counts(
+                db=db,
+                message_id=message_id,
+            )
+
+            await manager.broadcast_to_room(
+                room_code=room_code,
+                message={
+                    "type": "REACTION_ADDED",
+                    "message_id": message_id,
+                    "user_id": user_id,
+                    "emoji": emoji,
+                    "reactions": {
+                        e: {"count": len(uids), "user_ids": uids}
+                        for e, uids in reaction_counts.items()
+                    },
+                },
+            )
+        except Exception:
+            await db.rollback()
+            await websocket.send_json(
+                {"type": "ERROR", "message": "Failed to add reaction"}
+            )
+        return
+
+    # --------------------------------------------------
+    # REMOVE_REACTION
+    # --------------------------------------------------
+
+    if event_type == "REMOVE_REACTION":
+        payload = message.get("payload", {})
+        message_id = payload.get("message_id")
+        emoji = payload.get("emoji", "").strip()
+
+        if not isinstance(message_id, int):
+            await websocket.send_json(
+                {
+                    "type": "ERROR",
+                    "message": "REMOVE_REACTION requires payload.message_id as integer",
+                }
+            )
+            return
+
+        if not emoji:
+            await websocket.send_json(
+                {"type": "ERROR", "message": "REMOVE_REACTION requires payload.emoji"}
+            )
+            return
+
+        room = await room_repository.get_by_code(db, room_code)
+        if room is None:
+            await websocket.send_json({"type": "ERROR", "message": "Room not found"})
+            return
+
+        try:
+            removed = await reaction_repository.remove_reaction(
+                db=db,
+                message_id=message_id,
+                user_id=user_id,
+                emoji=emoji,
+            )
+            await db.commit()
+
+            if removed:
+                reaction_counts = await reaction_repository.get_reaction_counts(
+                    db=db,
+                    message_id=message_id,
+                )
+
+                await manager.broadcast_to_room(
+                    room_code=room_code,
+                    message={
+                        "type": "REACTION_REMOVED",
+                        "message_id": message_id,
+                        "user_id": user_id,
+                        "emoji": emoji,
+                        "reactions": {
+                            e: {"count": len(uids), "user_ids": uids}
+                            for e, uids in reaction_counts.items()
+                        },
+                    },
+                )
+        except Exception:
+            await db.rollback()
+            await websocket.send_json(
+                {"type": "ERROR", "message": "Failed to remove reaction"}
+            )
         return
 
     # --------------------------------------------------
@@ -649,6 +892,11 @@ async def authenticate_websocket(
     payload = decode_access_token(token)
 
     if payload is None:
+        return None, None
+
+    # Check if token has been revoked (logout)
+    jti = payload.get("jti")
+    if jti and await is_token_revoked(jti):
         return None, None
 
     user_id_str = payload.get("sub")
@@ -752,6 +1000,22 @@ async def send_chat_history_to_user(
         limit=limit,
     )
 
+    # Get all reactions for these messages
+    message_ids = [message.id for message, _ in messages]
+    all_reactions = await reaction_repository.get_reactions_for_messages(
+        db=db,
+        message_ids=message_ids,
+    )
+
+    # Group reactions by message_id
+    reactions_by_message: dict[int, dict[str, list[int]]] = {}
+    for reaction in all_reactions:
+        if reaction.message_id not in reactions_by_message:
+            reactions_by_message[reaction.message_id] = {}
+        if reaction.emoji not in reactions_by_message[reaction.message_id]:
+            reactions_by_message[reaction.message_id][reaction.emoji] = []
+        reactions_by_message[reaction.message_id][reaction.emoji].append(reaction.user_id)
+
     await websocket.send_json(
         {
             "type": "CHAT_HISTORY",
@@ -761,6 +1025,11 @@ async def send_chat_history_to_user(
                     "user_id": message.user_id,
                     "username": username,
                     "content": message.content,
+                    "reply_to_message_id": message.reply_to_message_id,
+                    "reactions": {
+                        e: {"count": len(uids), "user_ids": uids}
+                        for e, uids in reactions_by_message.get(message.id, {}).items()
+                    },
                     "created_at": message.created_at.isoformat(),
                 }
                 for message, username in messages

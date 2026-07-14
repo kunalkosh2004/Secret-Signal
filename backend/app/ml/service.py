@@ -65,6 +65,7 @@ def extract_features(messages: list[dict]) -> dict:
     """Extract per-player features from a list of training messages.
 
     Each message dict must contain: user_id, role, phase, content.
+    Optional keys: has_reply (bool), reply_to_role (str|None).
     Returns a dict mapping user_id -> feature dict.
     """
     player_messages: dict[int, list[dict]] = defaultdict(list)
@@ -89,10 +90,27 @@ def extract_features(messages: list[dict]) -> dict:
         discussion_count = 0
         voting_count = 0
 
+        # Social / reply / reaction features
+        reply_count = 0
+        reply_to_coordinator = 0
+        reply_to_detective = 0
+        reply_to_citizen = 0
+        reaction_events = 0
+        unique_reaction_emojis: set[str] = set()
+        text_message_count = 0
+
         for msg in msgs:
             content = msg["content"]
             phase = msg["phase"]
+            is_reaction = content.startswith("[reaction:")
 
+            if is_reaction:
+                reaction_events += 1
+                emoji_val = content[len("[reaction:") : -1]
+                unique_reaction_emojis.add(emoji_val)
+                continue
+
+            text_message_count += 1
             messages_by_phase[phase] += 1
             phases_active.add(phase)
 
@@ -117,18 +135,74 @@ def extract_features(messages: list[dict]) -> dict:
             elif phase == "voting":
                 voting_count += 1
 
+            if msg.get("has_reply"):
+                reply_count += 1
+                reply_role = msg.get("reply_to_role")
+                if reply_role == "coordinator":
+                    reply_to_coordinator += 1
+                elif reply_role == "detective":
+                    reply_to_detective += 1
+                elif reply_role in ("citizen", "operative"):
+                    reply_to_citizen += 1
+
+        effective_total = max(total, 1)
+
         features[user_id] = {
             "total_messages": total,
             "messages_by_phase": dict(messages_by_phase),
-            "avg_message_length": float(np.mean(lengths)),
-            "question_ratio": question_count / total,
-            "caps_ratio": caps_count / total,
-            "emoji_ratio": emoji_count / total,
+            "avg_message_length": (
+                float(np.mean(lengths)) if lengths else 0.0
+            ),
+            "question_ratio": (
+                question_count / text_message_count
+                if text_message_count > 0
+                else 0.0
+            ),
+            "caps_ratio": (
+                caps_count / text_message_count
+                if text_message_count > 0
+                else 0.0
+            ),
+            "emoji_ratio": (
+                emoji_count / text_message_count
+                if text_message_count > 0
+                else 0.0
+            ),
             "unique_phases_active_in": len(phases_active),
-            "interaction_message_ratio": interaction_count / total,
-            "discussion_message_ratio": discussion_count / total,
-            "voting_message_ratio": voting_count / total,
-            "avg_words_per_message": float(np.mean(word_counts)),
+            "interaction_message_ratio": (
+                interaction_count / text_message_count
+                if text_message_count > 0
+                else 0.0
+            ),
+            "discussion_message_ratio": (
+                discussion_count / text_message_count
+                if text_message_count > 0
+                else 0.0
+            ),
+            "voting_message_ratio": (
+                voting_count / text_message_count
+                if text_message_count > 0
+                else 0.0
+            ),
+            "avg_words_per_message": (
+                float(np.mean(word_counts)) if word_counts else 0.0
+            ),
+            # Social / reply features
+            "reply_ratio": reply_count / effective_total,
+            "reply_to_coordinator_ratio": (
+                reply_to_coordinator / effective_total
+            ),
+            "reply_to_detective_ratio": (
+                reply_to_detective / effective_total
+            ),
+            "reply_to_citizen_ratio": (
+                reply_to_citizen / effective_total
+            ),
+            # Reaction features
+            "reaction_event_ratio": reaction_events / effective_total,
+            "unique_reaction_emoji_count": len(unique_reaction_emojis),
+            # Text-only message count for reference
+            "text_message_ratio": text_message_count / effective_total,
         }
 
     return features
@@ -151,6 +225,13 @@ def _features_to_vector(features: dict) -> np.ndarray:
         features["discussion_message_ratio"],
         features["voting_message_ratio"],
         features["avg_words_per_message"],
+        features["reply_ratio"],
+        features["reply_to_coordinator_ratio"],
+        features["reply_to_detective_ratio"],
+        features["reply_to_citizen_ratio"],
+        features["reaction_event_ratio"],
+        features["unique_reaction_emoji_count"],
+        features["text_message_ratio"],
     ])
 
 
@@ -165,6 +246,13 @@ FEATURE_NAMES = [
     "discussion_message_ratio",
     "voting_message_ratio",
     "avg_words_per_message",
+    "reply_ratio",
+    "reply_to_coordinator_ratio",
+    "reply_to_detective_ratio",
+    "reply_to_citizen_ratio",
+    "reaction_event_ratio",
+    "unique_reaction_emoji_count",
+    "text_message_ratio",
 ]
 
 
@@ -189,6 +277,8 @@ async def train_model(db: AsyncSession) -> dict:
             "role": msg.role,
             "phase": msg.phase,
             "content": msg.content,
+            "has_reply": getattr(msg, "has_reply", False),
+            "reply_to_role": getattr(msg, "reply_to_role", None),
         })
         role_map[key] = msg.role
 
@@ -353,6 +443,8 @@ async def predict_coordinator(db: AsyncSession, game_id: int) -> dict:
             "role": msg.role,
             "phase": msg.phase,
             "content": msg.content,
+            "has_reply": getattr(msg, "has_reply", False),
+            "reply_to_role": getattr(msg, "reply_to_role", None),
         })
 
     player_features = extract_features(

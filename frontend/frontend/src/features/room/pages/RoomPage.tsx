@@ -200,6 +200,32 @@ export function RoomPage() {
               )}
             </span>
           </div>
+
+          {/* Game settings display */}
+          {room.settings && Object.keys(room.settings).length > 0 && (
+            <div className="mt-4 flex items-center justify-center gap-3 text-xs font-mono text-gray-600">
+              <span className="text-gray-500">|</span>
+              <span>
+                <span className="text-gray-500">ROUNDS:</span>{' '}
+                <span className="text-gray-800">{(room.settings as Record<string, unknown>).max_rounds ?? 1}</span>
+              </span>
+              {(room.settings as Record<string, unknown>).phase_durations && (
+                <>
+                  <span className="text-gray-500">|</span>
+                  <span>
+                    <span className="text-gray-500">CHAT:</span>{' '}
+                    <span className="text-gray-800">
+                      {(() => {
+                        const pd = (room.settings as Record<string, Record<string, unknown>>).phase_durations
+                        const secs = (pd?.interaction as number) ?? 120
+                        return secs >= 60 ? `${Math.floor(secs / 60)}m ${secs % 60 > 0 ? secs % 60 + 's' : ''}` : `${secs}s`
+                      })()}
+                    </span>
+                  </span>
+                </>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Player list */}

@@ -1,41 +1,4 @@
-"""
-Authentication router — all /api/v1/auth/* endpoints.
-
-Each handler is a stub that raises NotImplementedError.
-Remove the stub and implement the real logic as you build each feature.
-
-Endpoints:
-
-    POST /signup
-        Body: SignupRequest
-        201: { user, access_token }
-        409: email or username already exists
-        422: validation error
-
-    POST /login
-        Body: LoginRequest
-        200: { user, access_token }
-        401: invalid credentials
-
-    POST /logout
-        200: logged out (or 204 No Content)
-        May require authentication depending on token strategy.
-
-    GET /me
-        Header: Authorization: Bearer <token>
-        200: UserResponse
-        401: missing or invalid token
-
-    GET /google/login
-        302: redirect to Google consent screen
-
-    GET /google/callback
-        Query: code, state
-        302: redirect to frontend with session
-        401: OAuth error
-"""
-
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 import secrets
@@ -46,6 +9,10 @@ from app.core.config import settings
 from app.core.redis import (
     store_oauth_state,
     consume_oauth_state,
+    revoke_token,
+    store_password_reset_token,
+    consume_password_reset_token,
+    revoke_all_user_tokens,
 )
 from app.core.exceptions import UnauthorizedError
 from app.auth.schemas import SignupRequest, LoginRequest, TokenResponse
@@ -62,6 +29,11 @@ from app.auth.oauth.google import build_authorization_url
 from app.core.redis import store_google_link_state
 from app.auth.service import handle_google_link_callback
 from app.core.redis import consume_google_link_state
+from app.auth.security import decode_access_token
+from app.core.redis_rate_limit import is_rate_limited
+from pydantic import BaseModel
+from app.users import repository as user_repository
+from app.auth.security import hash_password
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
@@ -90,13 +62,26 @@ async def login(
 
 
 @router.post("/logout")
-async def logout():
+async def logout(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+):
     """
-    Log out the current user.
+    Log out the current user by revoking their JWT token.
+    """
+    auth_header = request.headers.get("authorization", "")
+    token = auth_header.replace("Bearer ", "").strip()
 
-    With stateless JWT authentication, the client is responsible
-    for deleting the access token.
-    """
+    if token:
+        payload = decode_access_token(token)
+        if payload:
+            jti = payload.get("jti")
+            exp = payload.get("exp")
+            if jti and exp:
+                import time
+                remaining = max(0, int(exp) - int(time.time()))
+                await revoke_token(jti, remaining)
+
     return {
         "message": "Logged out successfully"
     }
@@ -188,3 +173,76 @@ async def google_link_callback(
     return {
         "message": "Google account linked successfully"
     }
+
+
+# ---------------------------------------------------------------------------
+# Forgot password
+# ---------------------------------------------------------------------------
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
+
+@router.post("/forgot-password")
+async def forgot_password(
+    request: ForgotPasswordRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Request a password reset token.
+    In production, this would send an email. For now, we return the token directly.
+    """
+    # Rate limit: 3 forgot password requests per minute per email
+    if await is_rate_limited("api_auth", f"forgot:{request.email}", max_requests=3, window_seconds=60):
+        raise UnauthorizedError("Too many requests. Please wait before trying again.")
+
+    user = await user_repository.get_by_email(db, request.email.lower().strip())
+
+    if user is None:
+        # Don't reveal whether the email exists
+        return {"message": "If an account with that email exists, a reset link has been sent."}
+
+    # Generate a secure reset token
+    reset_token = secrets.token_urlsafe(32)
+    await store_password_reset_token(user.id, reset_token)
+
+    # In production: send email with reset_token
+    # For now: return token in response (development only)
+    return {
+        "message": "If an account with that email exists, a reset link has been sent.",
+        "reset_token": reset_token,  # Remove in production
+    }
+
+
+@router.post("/reset-password")
+async def reset_password(
+    request: ResetPasswordRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Reset password using a valid reset token."""
+    user_id = await consume_password_reset_token(request.token)
+
+    if user_id is None:
+        raise UnauthorizedError("Invalid or expired reset token.")
+
+    # Validate new password
+    if len(request.new_password) < 8:
+        raise UnauthorizedError("Password must be at least 8 characters.")
+
+    user = await user_repository.get_by_id(db, user_id)
+    if user is None:
+        raise UnauthorizedError("User not found.")
+
+    # Update password
+    user.password_hash = hash_password(request.new_password)
+    await db.commit()
+
+    # Revoke all existing tokens for this user
+    await revoke_all_user_tokens(user_id, expires_in_seconds=3600)
+
+    return {"message": "Password reset successfully. Please log in with your new password."}

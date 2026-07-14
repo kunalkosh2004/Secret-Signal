@@ -93,6 +93,8 @@ export function useWebSocket(roomCode: string | null): UseWebSocketResult {
           user_id: state.user.id,
           username: state.user.username,
           content: event.content,
+          reply_to_message_id: (event as any).reply_to_message_id ?? null,
+          reactions: {},
           created_at: new Date().toISOString(),
         }
         setChatMessages((prev) => [...prev, optimistic])
@@ -125,16 +127,17 @@ export function useWebSocket(roomCode: string | null): UseWebSocketResult {
     const token = tokenRef.current
     if (!token) return
 
-    const url = `ws://localhost:8000/ws?token=${token}&room_code=${roomCode}`
-
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null
     let closed = false
 
     function connect() {
       if (closed) return
+      const currentToken = tokenRef.current
+      if (!currentToken) return
+
+      const url = `ws://localhost:8000/ws?token=${currentToken}&room_code=${roomCode}`
       const ws = new WebSocket(url)
       wsRef.current = ws
-
       ws.onopen = () => {
         setIsConnected(true)
       }
@@ -184,7 +187,6 @@ export function useWebSocket(roomCode: string | null): UseWebSocketResult {
               break
             case 'MESSAGE_SENT':
               setChatMessages((prev) => {
-                // Replace optimistic message with real one from server
                 const idx = prev.findIndex(
                   (m) => m.id < 0 && m.user_id === data.message.user_id && m.content === data.message.content,
                 )
@@ -196,6 +198,16 @@ export function useWebSocket(roomCode: string | null): UseWebSocketResult {
                 return mergeChatMessages(prev, [data.message])
               })
               break
+            case 'REACTION_ADDED':
+            case 'REACTION_REMOVED':
+              setChatMessages((prev) =>
+                prev.map((m) =>
+                  m.id === data.message_id
+                    ? { ...m, reactions: data.reactions }
+                    : m,
+                ),
+              )
+              break
           }
         } catch {
           // ignore malformed messages
@@ -205,7 +217,7 @@ export function useWebSocket(roomCode: string | null): UseWebSocketResult {
       ws.onclose = () => {
         setIsConnected(false)
         wsRef.current = null
-        if (!closed) {
+        if (!closed && tokenRef.current && tokenRef.current === currentToken) {
           reconnectTimer = setTimeout(connect, 2000)
         }
       }

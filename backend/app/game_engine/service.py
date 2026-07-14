@@ -14,7 +14,15 @@ from app.game_engine.state_machine import (
     validate_transition,
 )
 
-MAX_ROUNDS = 1
+DEFAULT_PHASE_DURATIONS = {
+    "role_assignment": 6,
+    "round_start": 5,
+    "interaction": 120,
+    "discussion": 90,
+    "result": 10,
+}
+
+DEFAULT_MAX_ROUNDS = 1
 
 def assign_roles(
     user_ids: list[int],
@@ -95,9 +103,17 @@ async def start_game(
     role_assignments = assign_roles(user_ids)
 
     try:
+        room_settings = room.settings or {}
+        game_settings = {
+            "max_rounds": room_settings.get("max_rounds", DEFAULT_MAX_ROUNDS),
+            "phase_durations": room_settings.get("phase_durations", DEFAULT_PHASE_DURATIONS),
+        }
+
         game = await game_repository.create_game(
             db,
             room_id=room.id,
+            max_rounds=game_settings["max_rounds"],
+            phase_durations=game_settings["phase_durations"],
         )
 
         for user_id, role in role_assignments.items():
@@ -176,7 +192,7 @@ async def advance_phase(
     if (
         current_phase == GamePhase.RESULT
         and next_phase == GamePhase.ROUND_START
-        and game.round_number >= MAX_ROUNDS
+        and game.round_number >= game.max_rounds
     ):
         raise ValueError(
             "Maximum rounds reached; game must transition to game_over"
@@ -251,7 +267,7 @@ async def check_win_condition(
         )
     )
 
-    if completed_missions >= MAX_ROUNDS:
+    if completed_missions >= game.max_rounds:
         return WinConditionResult(
             game_over=True,
             winner="coordinator",
@@ -284,7 +300,7 @@ async def check_win_condition(
                 )
 
     if (
-        game.round_number >= MAX_ROUNDS
+        game.round_number >= game.max_rounds
         and game.phase == GamePhase.RESULT.value
     ):
         return WinConditionResult(

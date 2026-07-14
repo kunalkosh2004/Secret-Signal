@@ -4,6 +4,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Integer,
+    JSON,
     String,
     UniqueConstraint,
 )
@@ -43,6 +44,18 @@ class Game(Base):
         String(30),
         nullable=False,
         default="role_assignment",
+    )
+
+    max_rounds = Column(
+        Integer,
+        nullable=False,
+        default=1,
+    )
+
+    phase_durations = Column(
+        JSON,
+        nullable=False,
+        server_default="{}",
     )
 
     phase_started_at = Column(

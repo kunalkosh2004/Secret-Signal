@@ -1,22 +1,3 @@
-"""
-User repository — data-access layer for the users table.
-
-Following the repository pattern to keep SQLAlchemy queries
-isolated from business logic.
-
-TODO: Implement these methods using SQLAlchemy async session:
-
-    async def get_by_id(db: AsyncSession, user_id: UUID) -> User | None
-    async def get_by_email(db: AsyncSession, email: str) -> User | None
-    async def get_by_username(db: AsyncSession, username: str) -> User | None
-    async def create(db: AsyncSession, **kwargs) -> User
-    async def update(db: AsyncSession, user: User, **kwargs) -> User
-
-Later you may add:
-    - listing users (for room invites, etc.)
-    - soft-delete support
-"""
-
 from typing import Optional
 
 from sqlalchemy import select

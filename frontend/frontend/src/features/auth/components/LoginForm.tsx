@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import type { FormErrors, AuthResponse } from '../types/auth.types'
 import { validateLoginForm } from '../validation/authValidation'
 import { login } from '../services/authApi'
@@ -78,11 +79,14 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
         error={errors.password}
       />
 
-      {/* Forgot password — placeholder only */}
+      {/* Forgot password */}
       <div className="flex justify-end">
-        <span className="text-xs text-gray-600 font-mono cursor-not-allowed opacity-60">
-          Forgot password? <span className="italic">(coming soon)</span>
-        </span>
+        <Link
+          to="/auth/forgot-password"
+          className="text-xs text-gray-600 font-mono hover:text-accent transition-colors"
+        >
+          Forgot password?
+        </Link>
       </div>
 
       {/* Server error */}

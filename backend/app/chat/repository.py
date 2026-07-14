@@ -10,11 +10,13 @@ async def create_message(
     room_id: int,
     user_id: int,
     content: str,
+    reply_to_message_id: int | None = None,
 ) -> Message:
     message = Message(
         room_id=room_id,
         user_id=user_id,
         content=content,
+        reply_to_message_id=reply_to_message_id,
     )
 
     db.add(message)
@@ -39,3 +41,13 @@ async def get_room_messages(
     )
 
     return list(reversed(result.all()))
+
+
+async def get_message_by_id(
+    db: AsyncSession,
+    message_id: int,
+) -> Message | None:
+    result = await db.execute(
+        select(Message).where(Message.id == message_id)
+    )
+    return result.scalar_one_or_none()

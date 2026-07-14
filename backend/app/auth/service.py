@@ -1,58 +1,5 @@
-"""
-Auth service — orchestrates signup, login, logout, and token management.
-
-This is where the business logic of authentication lives.
-It calls the user repository, hashing utilities, and token creation.
-
-TODO: Implement each function below.
-
-Planned functions:
-
-    async def signup(db, request: SignupRequest) -> AuthResponse
-        1. Normalise email to lowercase.
-        2. Check email uniqueness (look up by email).
-        3. Check username uniqueness.
-        4. Hash the password (call security.hash_password).
-        5. Create user via user repository.
-        6. Create access token (call security.create_access_token).
-        7. Return TokenResponse with user + token.
-
-    async def login(db, request: LoginRequest) -> AuthResponse
-        1. Normalise email to lowercase.
-        2. Find user by email.
-           If not found → raise UnauthorizedError (generic message).
-        3. Verify password (call security.verify_password).
-           If wrong → raise UnauthorizedError (generic message).
-        4. Create access token.
-        5. Return TokenResponse with user + token.
-
-    async def logout(db, current_user) -> None
-        Depends on token strategy:
-        - Short-lived JWT only: logout is handled client-side by discarding the token.
-        - With refresh tokens: revoke the refresh token in the database.
-        - With server-side sessions: delete the session.
-
-    async def handle_google_callback(db, code, state) -> AuthResponse
-        Delegates to:
-        1. google.verify_google_token(code, state) → GoogleUserInfo
-        2. Find or create auth identity + user.
-        3. Create access token.
-        4. Return AuthResponse.
-
-Design constraints:
-    - The service layer never catches exceptions and returns 200.
-      Let exceptions propagate to FastAPI's exception handlers.
-    - The service layer never accesses the request/response objects.
-      It works with plain data and repository calls.
-    - The service layer never creates users with empty/null password_hash
-      unless it's explicitly for OAuth-only accounts.
-"""
-
 from app.auth.schemas import SignupRequest, LoginRequest, TokenResponse
 from app.auth.security import hash_password, verify_password, create_access_token
-# from app.auth.repository import auth_repository
-# from app.users.repository import user_repository
-# from app.users.service import user_service
 from app.core.exceptions import ConflictError, UnauthorizedError
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.users.repository import (

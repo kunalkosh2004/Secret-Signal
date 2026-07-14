@@ -53,10 +53,14 @@ import type {
   MissionProgressEvent,
   VoteResultsEvent,
   VoteCastEvent,
+  TimerUpdatedEvent,
+  MLTrainedEvent,
 } from './game.types'
 import type {
   ChatHistoryEvent,
   ChatMessageSentEvent,
+  ReactionAddedEvent,
+  ReactionRemovedEvent,
 } from '../../chat/types/chat.types'
 
 export type WsServerEvent =
@@ -70,11 +74,17 @@ export type WsServerEvent =
   | MissionProgressEvent
   | VoteResultsEvent
   | VoteCastEvent
+  | TimerUpdatedEvent
+  | MLTrainedEvent
   | ChatMessageSentEvent
   | ChatHistoryEvent
+  | ReactionAddedEvent
+  | ReactionRemovedEvent
 
 export type WsClientEvent =
   | { type: 'PLAYER_READY'; payload: { ready: boolean } }
-  | { type: 'SEND_MESSAGE'; content: string }
+  | { type: 'SEND_MESSAGE'; content: string; reply_to_message_id?: number | null }
   | { type: 'LEAVE_ROOM' }
   | { type: 'CAST_VOTE'; payload: { target_user_id: number } }
+  | { type: 'ADD_REACTION'; payload: { message_id: number; emoji: string } }
+  | { type: 'REMOVE_REACTION'; payload: { message_id: number; emoji: string } }

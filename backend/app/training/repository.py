@@ -12,6 +12,8 @@ async def create_training_message(
     phase: str,
     content: str,
     round_number: int,
+    has_reply: bool = False,
+    reply_to_role: str | None = None,
 ) -> TrainingMessage:
     message = TrainingMessage(
         game_id=game_id,
@@ -20,6 +22,8 @@ async def create_training_message(
         phase=phase,
         content=content,
         round_number=round_number,
+        has_reply=has_reply,
+        reply_to_role=reply_to_role,
     )
 
     db.add(message)

@@ -1,31 +1,3 @@
-"""
-SQLAlchemy User model.
-
-TODO: Implement the User model.
-
-Table:  users
-
-Columns:
-    id             UUID or auto-increment integer (primary key)
-    username       String(30), unique, indexed, not null
-    email          String(255), unique, indexed, not null
-    password_hash  String(255), nullable  — null for users who only use Google OAuth
-    is_active      Boolean, default True
-    is_verified    Boolean, default False
-    created_at     DateTime, server_default=func.now()
-    updated_at     DateTime, onupdate=func.now()
-
-Relationships:
-    auth_identities  → list of AuthIdentity (defined in auth/ models later)
-
-Constraints:
-    - Unique constraint on username
-    - Unique constraint on email
-
-Never store plaintext passwords. password_hash stores only the output of
-a secure password hashing function (bcrypt, argon2, etc.).
-"""
-
 from sqlalchemy import String, Boolean, DateTime, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base

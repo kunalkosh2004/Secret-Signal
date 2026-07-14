@@ -107,7 +107,7 @@ async def websocket_endpoint(
                 )
 
         except WebSocketDisconnect:
-            manager.disconnect(
+            await manager.async_disconnect(
                 room_code=room_code,
                 user_id=user_id,
                 websocket=websocket,
@@ -132,14 +132,14 @@ async def websocket_endpoint(
             )
 
         except RuntimeError:
-            manager.disconnect(
+            await manager.async_disconnect(
                 room_code=room_code,
                 user_id=user_id,
                 websocket=websocket,
             )
 
         except Exception:
-            manager.disconnect(
+            await manager.async_disconnect(
                 room_code=room_code,
                 user_id=user_id,
                 websocket=websocket,

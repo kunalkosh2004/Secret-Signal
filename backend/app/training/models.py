@@ -1,5 +1,6 @@
 from sqlalchemy.sql import func
 from sqlalchemy import (
+    Boolean,
     Column,
     DateTime,
     ForeignKey,
@@ -55,6 +56,17 @@ class TrainingMessage(Base):
         Integer,
         nullable=True,
         index=True,
+    )
+
+    has_reply = Column(
+        Boolean,
+        nullable=False,
+        server_default="false",
+    )
+
+    reply_to_role = Column(
+        String(30),
+        nullable=True,
     )
 
     created_at = Column(

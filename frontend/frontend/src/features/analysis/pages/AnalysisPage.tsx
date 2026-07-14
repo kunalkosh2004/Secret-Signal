@@ -67,16 +67,19 @@ function PlayerCard({ player, playerName }: { player: PlayerAnalysis; playerName
           <div className="text-[10px] font-mono text-gray-500 mb-1">MESSAGE ACTIVITY</div>
           <div className="flex gap-1">
             {player.round_breakdown.map((r) => (
-              <div
-                key={r.round}
-                className="flex-1 h-10 bg-gray-200 border border-gray-300/30 rounded relative overflow-hidden"
-                title={`Round ${r.round}: ${r.message_count} msgs, ${r.questions} questions`}
-              >
                 <div
-                  className="absolute bottom-0 w-full bg-accent/40 transition-all duration-500"
-                  style={{ height: `${Math.min(100, (r.message_count / 20) * 100)}%` }}
-                />
-              </div>
+                  key={r.round}
+                  className="flex-1 h-10 bg-gray-200 border border-gray-300/30 rounded relative overflow-hidden"
+                  title={`Round ${r.round}: ${r.message_count} msgs, ${r.questions} questions`}
+                >
+                  <div
+                    className="absolute bottom-0 w-full bg-accent transition-all duration-500"
+                    style={{ height: `${Math.min(100, (r.message_count / 8) * 100)}%` }}
+                  />
+                  <span className="absolute inset-0 flex items-center justify-center text-[10px] font-mono font-bold text-gray-900 z-10">
+                    {r.message_count}
+                  </span>
+                </div>
             ))}
           </div>
           <div className="flex gap-1 mt-0.5">

@@ -22,7 +22,7 @@ from app.websocket.manager import manager
 from app.missions import repository as mission_repository
 from app.voting import service as voting_service
 from app.game_engine.state_machine import GamePhase
-from app.game_engine.timer import start_phase_timer, cancel_timer
+from app.game_engine.timer import start_phase_timer, cancel_timer, get_phase_duration
 
 
 router = APIRouter(
@@ -64,14 +64,15 @@ async def start_game(
                     "room_id": game.room_id,
                     "status": game.status,
                     "round_number": game.round_number,
+                    "max_rounds": game.max_rounds,
                     "phase": game.phase,
                 },
             },
         )
 
         # Send timer info
-        from app.game_engine.timer import PHASE_DURATIONS
-        duration = PHASE_DURATIONS.get(game.phase)
+        game_durations = game.phase_durations or {}
+        duration = get_phase_duration(game.phase, game_durations)
         if duration:
             await manager.broadcast_to_room(
                 room_code=normalized_room_code,
@@ -86,11 +87,12 @@ async def start_game(
             )
 
         # Start auto timer for role_assignment phase
-        await start_phase_timer(
+        start_phase_timer(
             db_factory=SessionLocal,
             game_id=game.id,
             room_code=normalized_room_code,
             phase=game.phase,
+            phase_durations=game_durations,
         )
 
         return game
@@ -185,8 +187,8 @@ async def advance_phase(
     )
 
     # Send timer info
-    from app.game_engine.timer import PHASE_DURATIONS
-    duration = PHASE_DURATIONS.get(game.phase)
+    game_durations = game.phase_durations or {}
+    duration = get_phase_duration(game.phase, game_durations)
     if duration:
         await manager.broadcast_to_room(
             room_code=room.code,
@@ -201,11 +203,12 @@ async def advance_phase(
         )
 
     # Start auto timer for new phase
-    await start_phase_timer(
+    start_phase_timer(
         db_factory=SessionLocal,
         game_id=game.id,
         room_code=room.code,
         phase=game.phase,
+        phase_durations=game_durations,
     )
 
     # --------------------------------------------------
@@ -267,6 +270,7 @@ async def advance_phase(
                         "id": game.id,
                         "status": game.status,
                         "round_number": game.round_number,
+                        "max_rounds": game.max_rounds,
                         "phase": game.phase,
                     },
                     "winner": win_result.winner,

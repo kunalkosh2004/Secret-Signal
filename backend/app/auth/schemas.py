@@ -1,33 +1,3 @@
-"""
-Pydantic schemas for authentication requests and responses.
-
-These define what the API accepts and returns.
-They are the contract between frontend and backend.
-
-TODO: When you implement the handlers, add the proper field validators.
-
-Planned schemas:
-
-    SignupRequest
-        - username: str  (validated: 2-30 chars, alphanumeric + underscores)
-        - email: EmailStr (from pydantic, validates format)
-        - password: str   (validated: min length, complexity)
-
-    LoginRequest
-        - email: EmailStr
-        - password: str
-
-    TokenResponse
-        - access_token: str
-        - token_type: str = "bearer"
-        - user: UserResponse
-
-Design rules:
-    - Passwords are received, validated, and immediately hashed.
-      The plaintext password is never logged, stored, or returned.
-    - Email is normalised to lowercase before storage/comparison.
-"""
-
 from pydantic import BaseModel, EmailStr, field_validator
 from app.users.schemas import UserResponse
 

@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.rooms import repository as room_repository
 from app.rooms.models import Room
-from app.rooms.schemas import CreateRoomRequest
+from app.rooms.schemas import CreateRoomRequest, GameSettings
 
 ROOM_CODE_LENGTH = 6
 
@@ -37,13 +37,15 @@ async def create_room(
         if existing_room is None:
             break
 
+    game_settings = GameSettings(**request.settings)
+
     room = await room_repository.create(
         db,
         code=code,
         host_id=host_id,
         status="waiting",
         max_players=request.max_players,
-        settings=request.settings,
+        settings=game_settings.model_dump(),
     )
 
     await room_repository.add_player(

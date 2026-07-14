@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel
 
@@ -20,7 +21,9 @@ class GameState(BaseModel):
     room_id: int
     status: str
     round_number: int
+    max_rounds: int = 1
     phase: GamePhase
+    phase_durations: dict[str, Any] = {}
     created_at: datetime
 
     model_config = {

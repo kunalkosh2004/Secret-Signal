@@ -22,12 +22,16 @@ async def get_by_room_id(
 async def create_game(
     db: AsyncSession,
     room_id: int,
+    max_rounds: int = 1,
+    phase_durations: dict | None = None,
 ) -> Game:
     game = Game(
         room_id=room_id,
         status="active",
         round_number=1,
         phase="role_assignment",
+        max_rounds=max_rounds,
+        phase_durations=phase_durations or {},
     )
 
     db.add(game)

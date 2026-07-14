@@ -1,8 +1,10 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuthStore } from '../../stores/authStore'
 
 export const Navbar = () => {
   const { user, isAuthenticated, logout } = useAuthStore()
+  const [mobileOpen, setMobileOpen] = useState(false)
 
   return (
     <nav className="bg-gray-100/90 backdrop-blur-sm border-b border-red-900/20 sticky top-0 z-40">
@@ -51,17 +53,85 @@ export const Navbar = () => {
               )}
             </div>
           </div>
-          <div className="md:hidden">
-            <button type="button" className="inline-flex items-center p-2 ml-3 text-sm text-gray-600 rounded-md hover:bg-gray-200 transition-colors"
-              aria-controls="mobile-menu" aria-expanded="false">
+          {/* Mobile hamburger */}
+          <div className="md:hidden flex items-center">
+            <button
+              type="button"
+              onClick={() => setMobileOpen(!mobileOpen)}
+              className="inline-flex items-center justify-center p-2 ml-3 text-sm text-gray-600 rounded-md hover:bg-gray-200 transition-colors"
+              aria-controls="mobile-menu"
+              aria-expanded={mobileOpen}
+            >
               <span className="sr-only">Open main menu</span>
-              <svg className="block h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" aria-hidden="true">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-              </svg>
+              {mobileOpen ? (
+                <svg className="block h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              ) : (
+                <svg className="block h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+                </svg>
+              )}
             </button>
           </div>
         </div>
       </div>
+
+      {/* Mobile menu */}
+      {mobileOpen && (
+        <div className="md:hidden border-t border-gray-400/20 bg-gray-100/95 backdrop-blur-sm" id="mobile-menu">
+          <div className="px-4 pt-2 pb-3 space-y-1">
+            <Link
+              to="/"
+              onClick={() => setMobileOpen(false)}
+              className="block px-3 py-2 rounded-md text-sm font-mono text-gray-600 hover:text-gray-900 hover:bg-gray-200 transition-colors"
+            >
+              How It Works
+            </Link>
+            <Link
+              to="/"
+              onClick={() => setMobileOpen(false)}
+              className="block px-3 py-2 rounded-md text-sm font-mono text-gray-600 hover:text-gray-900 hover:bg-gray-200 transition-colors"
+            >
+              Roles
+            </Link>
+            <Link
+              to="/"
+              onClick={() => setMobileOpen(false)}
+              className="block px-3 py-2 rounded-md text-sm font-mono text-gray-600 hover:text-gray-900 hover:bg-gray-200 transition-colors"
+            >
+              About
+            </Link>
+          </div>
+          <div className="border-t border-gray-400/20 px-4 py-3">
+            {isAuthenticated && user ? (
+              <div className="flex items-center justify-between">
+                <Link
+                  to="/lobby"
+                  onClick={() => setMobileOpen(false)}
+                  className="text-sm font-mono text-gray-600 hover:text-gray-800 transition-colors"
+                >
+                  <span className="text-accent">&gt;</span> {user.username}
+                </Link>
+                <button
+                  onClick={() => { logout(); setMobileOpen(false) }}
+                  className="text-xs font-mono text-gray-500 hover:text-accent transition-colors"
+                >
+                  LOG OUT
+                </button>
+              </div>
+            ) : (
+              <Link
+                to="/auth"
+                onClick={() => setMobileOpen(false)}
+                className="block w-full text-center px-4 py-2 border border-accent/50 text-sm font-medium rounded-md bg-accent/10 hover:bg-accent/20 hover:border-accent transition-all"
+              >
+                Play Now
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
     </nav>
   )
 }

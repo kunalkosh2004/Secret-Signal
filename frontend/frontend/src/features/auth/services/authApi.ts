@@ -11,6 +11,10 @@ import type {
   AuthResponse,
   UserResponse,
   ApiErrorResponse,
+  ForgotPasswordRequest,
+  ForgotPasswordResponse,
+  ResetPasswordRequest,
+  ResetPasswordResponse,
 } from '../types/auth.types'
 
 const BASE = '/api/v1/auth'
@@ -85,4 +89,20 @@ export async function getCurrentUser(token: string): Promise<UserResponse> {
  */
 export function beginGoogleLogin(): void {
   window.location.href = `${BASE}/google/login`
+}
+
+// ── Forgot Password ─────────────────────────────────────────────
+
+export async function forgotPassword(data: ForgotPasswordRequest): Promise<ForgotPasswordResponse> {
+  return request<ForgotPasswordResponse>('/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function resetPassword(data: ResetPasswordRequest): Promise<ResetPasswordResponse> {
+  return request<ResetPasswordResponse>('/reset-password', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
 }

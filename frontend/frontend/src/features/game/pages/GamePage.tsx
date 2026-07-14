@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import { useAuthStore } from '../../../stores/authStore'
 import { useWebSocket } from '../../../hooks/useWebSocket'
@@ -183,12 +183,20 @@ export function GamePage() {
     }
   }, [lastGameOver])
 
-  const handleSendMessage = useCallback((content: string) => {
-    sendMessage({ type: 'SEND_MESSAGE', content })
+  const handleSendMessage = useCallback((content: string, replyToMessageId?: number | null) => {
+    sendMessage({ type: 'SEND_MESSAGE', content, reply_to_message_id: replyToMessageId ?? null } as any)
   }, [sendMessage])
 
   const handleVote = useCallback((targetUserId: number) => {
     sendMessage({ type: 'CAST_VOTE', payload: { target_user_id: targetUserId } })
+  }, [sendMessage])
+
+  const handleReact = useCallback((messageId: number, emoji: string) => {
+    sendMessage({ type: 'ADD_REACTION', payload: { message_id: messageId, emoji } })
+  }, [sendMessage])
+
+  const handleRemoveReaction = useCallback((messageId: number, emoji: string) => {
+    sendMessage({ type: 'REMOVE_REACTION', payload: { message_id: messageId, emoji } })
   }, [sendMessage])
 
   if (!isAuthenticated) {
@@ -285,6 +293,8 @@ export function GamePage() {
                   <ChatPanel
                     messages={chatMessages}
                     onSend={handleSendMessage}
+                    onReact={handleReact}
+                    onRemoveReaction={handleRemoveReaction}
                     currentUserId={user.id}
                   />
                 )}
@@ -334,6 +344,8 @@ export function GamePage() {
                   <ChatPanel
                     messages={chatMessages}
                     onSend={handleSendMessage}
+                    onReact={handleReact}
+                    onRemoveReaction={handleRemoveReaction}
                     currentUserId={user.id}
                   />
                 )}
@@ -354,6 +366,8 @@ export function GamePage() {
                   <ChatPanel
                     messages={chatMessages}
                     onSend={handleSendMessage}
+                    onReact={handleReact}
+                    onRemoveReaction={handleRemoveReaction}
                     currentUserId={user.id}
                   />
                 )}
@@ -411,6 +425,8 @@ export function GamePage() {
                   <ChatPanel
                     messages={chatMessages}
                     onSend={handleSendMessage}
+                    onReact={handleReact}
+                    onRemoveReaction={handleRemoveReaction}
                     currentUserId={user.id}
                   />
                 )}
@@ -462,6 +478,8 @@ export function GamePage() {
                   <ChatPanel
                     messages={chatMessages}
                     onSend={handleSendMessage}
+                    onReact={handleReact}
+                    onRemoveReaction={handleRemoveReaction}
                     currentUserId={user.id}
                   />
                 )}
