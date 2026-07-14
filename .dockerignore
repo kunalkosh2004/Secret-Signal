@@ -50,8 +50,7 @@ backend/test_*.py
 backend/create_table.py
 backend/server.log
 
-# Infrastructure (not needed in app containers)
-infrastructure/
+# GitHub (not needed in app containers)
 .github/
 
 # Docker files

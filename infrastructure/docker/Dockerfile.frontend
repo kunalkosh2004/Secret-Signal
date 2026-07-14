@@ -10,8 +10,8 @@ FROM node:20-alpine AS deps
 
 WORKDIR /app
 
-COPY frontend/frontend/package.json frontend/frontend/package-lock.json ./
-RUN npm ci
+COPY frontend/frontend/package.json ./
+RUN npm install
 
 # ---------------------------------------------------------------------------
 # Stage 2: Build
