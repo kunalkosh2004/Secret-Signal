@@ -5,8 +5,6 @@ from pathlib import Path
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-
-
 REPO_ROOT = Path(__file__).resolve().parents[3]
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
 
@@ -30,6 +28,7 @@ class Settings(BaseSettings):
         if url and url.startswith("postgresql://"):
             values["DATABASE_URL"] = url.replace("postgresql://", "postgresql+asyncpg://", 1)
         return values
+
     backend_host: str = "0.0.0.0"
     backend_port: int = 8000
     debug: bool = True
