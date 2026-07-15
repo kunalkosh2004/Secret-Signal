@@ -70,12 +70,15 @@ async def run_async_migrations() -> None:
     url = url.replace("?sslmode=require", "")
     url = url.replace("&channel_binding=require", "")
 
-    ssl_context = ssl.create_default_context()
+    connect_args: dict = {}
+    if "localhost" not in url and "127.0.0.1" not in url:
+        ssl_context = ssl.create_default_context()
+        connect_args["ssl"] = ssl_context
 
     connectable = create_async_engine(
         url,
         poolclass=pool.NullPool,
-        connect_args={"ssl": ssl_context},
+        connect_args=connect_args,
     )
 
     async with connectable.connect() as connection:
