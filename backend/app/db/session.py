@@ -8,6 +8,14 @@ from sqlalchemy.ext.asyncio import (
 
 from app.core.config import settings
 
+print(
+    "DATABASE_URL =",
+    settings.DATABASE_URL.replace(
+        settings.DATABASE_URL.split(":")[2].split("@")[0],
+        "***",
+    ),
+)
+
 engine = create_async_engine(
     settings.DATABASE_URL,
     echo=True,

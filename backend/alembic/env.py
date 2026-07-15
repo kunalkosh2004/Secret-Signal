@@ -3,6 +3,7 @@ from logging.config import fileConfig
 
 from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
+from sqlalchemy.engine.url import make_url
 
 from alembic import context
 
@@ -50,8 +51,7 @@ def run_migrations_offline() -> None:
     with context.begin_transaction():
         context.run_migrations()
 
-
-def do_run_migrations(connection) -> None:
+def do_run_migrations(connection):
     context.configure(
         connection=connection,
         target_metadata=target_metadata,
@@ -61,11 +61,23 @@ def do_run_migrations(connection) -> None:
         context.run_migrations()
 
 
+import ssl
+from sqlalchemy.ext.asyncio import create_async_engine
+
 async def run_async_migrations() -> None:
-    connectable = async_engine_from_config(
-        config.get_section(config.config_ini_section, {}),
-        prefix="sqlalchemy.",
+    url = settings.DATABASE_URL
+
+    # Remove parameters asyncpg doesn't understand
+    url = url.replace("?sslmode=require&channel_binding=require", "")
+    url = url.replace("?sslmode=require", "")
+    url = url.replace("&channel_binding=require", "")
+
+    ssl_context = ssl.create_default_context()
+
+    connectable = create_async_engine(
+        url,
         poolclass=pool.NullPool,
+        connect_args={"ssl": ssl_context},
     )
 
     async with connectable.connect() as connection:

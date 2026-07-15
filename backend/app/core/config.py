@@ -26,7 +26,9 @@ class Settings(BaseSettings):
     def normalize_database_url(cls, values):
         url = values.get("DATABASE_URL", "")
         if url and url.startswith("postgresql://"):
-            values["DATABASE_URL"] = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+            values["DATABASE_URL"] = url.replace(
+                "postgresql://", "postgresql+asyncpg://", 1
+            )
         return values
 
     backend_host: str = "0.0.0.0"
