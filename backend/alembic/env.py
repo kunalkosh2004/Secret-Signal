@@ -51,6 +51,7 @@ def run_migrations_offline() -> None:
     with context.begin_transaction():
         context.run_migrations()
 
+
 def do_run_migrations(connection):
     context.configure(
         connection=connection,
@@ -59,7 +60,6 @@ def do_run_migrations(connection):
 
     with context.begin_transaction():
         context.run_migrations()
-
 
 
 async def run_async_migrations() -> None:
