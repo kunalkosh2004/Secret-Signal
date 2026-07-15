@@ -19,9 +19,7 @@ print(
 
 engine = create_async_engine(
     settings.DATABASE_URL,
-    connect_args={
-        "ssl": ssl.create_default_context()
-    },
+    connect_args={"ssl": ssl.create_default_context()},
 )
 
 SessionLocal = async_sessionmaker(
