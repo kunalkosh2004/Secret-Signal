@@ -71,7 +71,9 @@ async def run_async_migrations() -> None:
     url = url.replace("&channel_binding=require", "")
 
     is_local = "localhost" in url or "127.0.0.1" in url
-    connect_args: dict = {"ssl": False} if is_local else {"ssl": ssl.create_default_context()}
+    connect_args: dict = (
+        {"ssl": False} if is_local else {"ssl": ssl.create_default_context()}
+    )
 
     connectable = create_async_engine(
         url,
