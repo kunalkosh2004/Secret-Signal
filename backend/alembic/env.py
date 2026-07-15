@@ -1,9 +1,9 @@
 import asyncio
+import ssl
 from logging.config import fileConfig
 
 from sqlalchemy import pool
-from sqlalchemy.ext.asyncio import async_engine_from_config
-from sqlalchemy.engine.url import make_url
+from sqlalchemy.ext.asyncio import create_async_engine
 
 from alembic import context
 
@@ -61,8 +61,6 @@ def do_run_migrations(connection):
         context.run_migrations()
 
 
-import ssl
-from sqlalchemy.ext.asyncio import create_async_engine
 
 async def run_async_migrations() -> None:
     url = settings.DATABASE_URL
