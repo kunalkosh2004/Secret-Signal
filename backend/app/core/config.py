@@ -4,6 +4,7 @@ from pathlib import Path
 
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -21,6 +22,14 @@ class Settings(BaseSettings):
     )
 
     DATABASE_URL: str
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_database_url(cls, values):
+        url = values.get("DATABASE_URL", "")
+        if url and url.startswith("postgresql://"):
+            values["DATABASE_URL"] = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return values
     backend_host: str = "0.0.0.0"
     backend_port: int = 8000
     debug: bool = True
