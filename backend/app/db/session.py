@@ -9,6 +9,15 @@ from sqlalchemy.ext.asyncio import (
 
 from app.core.config import settings
 
+connect_args: dict = {}
+if "railway.internal" in (settings.DATABASE_URL or "") or "localhost" in (settings.DATABASE_URL or ""):
+    ssl_ctx = ssl.create_default_context()
+    ssl_ctx.check_hostname = False
+    ssl_ctx.verify_mode = ssl.CERT_NONE
+    connect_args["ssl"] = ssl_ctx
+else:
+    connect_args["ssl"] = ssl.create_default_context()
+
 engine = create_async_engine(
     settings.DATABASE_URL,
     pool_size=20,
@@ -16,7 +25,7 @@ engine = create_async_engine(
     pool_timeout=30,
     pool_recycle=1800,
     pool_pre_ping=True,
-    connect_args={"ssl": ssl.create_default_context()},
+    connect_args=connect_args,
 )
 
 SessionLocal = async_sessionmaker(
