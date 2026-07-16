@@ -69,11 +69,11 @@ async def run_async_migrations() -> None:
     url = url.replace("?sslmode=require", "")
     url = url.replace("&channel_binding=require", "")
 
-    connect_args: dict = {"ssl": False}
+    connect_args={}
 
     connectable = create_async_engine(
         url,
-        connect_args={"ssl": "require"},
+        connect_args=connect_args,
         poolclass=pool.NullPool,
     )
 
