@@ -240,6 +240,12 @@ async def websocket_endpoint(
 @app.get("/db-test")
 async def db_test():
     async with engine.connect() as conn:
+        from app.core.config import settings
+
+        print("=" * 80)
+        print("Endpoint DB URL repr:", repr(settings.DATABASE_URL))
+        print("Endpoint DB URL len :", len(settings.DATABASE_URL))
+        print("=" * 80)
         result = await conn.execute(text("SELECT 1"))
         return {"result": result.scalar()}
 app.include_router(health_router)
