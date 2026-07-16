@@ -10,13 +10,14 @@ from sqlalchemy.ext.asyncio import (
 from app.core.config import settings
 
 connect_args: dict = {}
-if "railway.internal" in (settings.DATABASE_URL or "") or "localhost" in (settings.DATABASE_URL or ""):
+db_url = settings.DATABASE_URL or ""
+if "localhost" in db_url or "127.0.0.1" in db_url:
+    pass
+else:
     ssl_ctx = ssl.create_default_context()
     ssl_ctx.check_hostname = False
     ssl_ctx.verify_mode = ssl.CERT_NONE
     connect_args["ssl"] = ssl_ctx
-else:
-    connect_args["ssl"] = ssl.create_default_context()
 
 engine = create_async_engine(
     settings.DATABASE_URL,

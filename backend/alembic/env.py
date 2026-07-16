@@ -71,14 +71,13 @@ async def run_async_migrations() -> None:
     url = url.replace("&channel_binding=require", "")
 
     is_local = "localhost" in url or "127.0.0.1" in url
-    is_railway_internal = "railway.internal" in url
-    if is_local or is_railway_internal:
+    if is_local:
+        connect_args: dict = {"ssl": False}
+    else:
         ssl_ctx = ssl.create_default_context()
         ssl_ctx.check_hostname = False
         ssl_ctx.verify_mode = ssl.CERT_NONE
-        connect_args: dict = {"ssl": ssl_ctx}
-    else:
-        connect_args = {"ssl": ssl.create_default_context()}
+        connect_args = {"ssl": ssl_ctx}
 
     connectable = create_async_engine(
         url,
