@@ -1,4 +1,5 @@
 from typing import AsyncGenerator
+import ssl
 
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
@@ -13,14 +14,12 @@ db_url = settings.DATABASE_URL or ""
 if "localhost" not in db_url and "127.0.0.1" not in db_url:
     connect_args["ssl"] = False
 
+ssl_context = ssl.create_default_context()
+
 engine = create_async_engine(
     settings.DATABASE_URL,
-    pool_size=20,
-    max_overflow=10,
-    pool_timeout=30,
-    pool_recycle=1800,
+    connect_args={"ssl": ssl_context},
     pool_pre_ping=True,
-    connect_args={"ssl": "require"},
 )
 
 SessionLocal = async_sessionmaker(
