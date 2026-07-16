@@ -292,6 +292,7 @@ async def advance_phase(
     # --------------------------------------------------
 
     if request.next_phase == GamePhase.GAME_OVER:
+
         async def _train_and_broadcast():
             try:
                 from app.ml.service import train_model
