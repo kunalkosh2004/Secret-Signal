@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import (
 )
 
 from app.core.config import settings
+from sqlalchemy.engine import make_url
 
 connect_args: dict = {}
 db_url = settings.DATABASE_URL or ""
