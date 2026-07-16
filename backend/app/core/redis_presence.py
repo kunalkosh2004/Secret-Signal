@@ -104,11 +104,16 @@ async def get_user_room(
 
 async def get_all_room_codes() -> list[str]:
     """Return all room codes with at least one online user."""
-    keys = await redis_client.keys("ws:room:*:count")
-    codes = []
-    for key in keys:
-        # key format: "ws:room:{room_code}:count"
-        parts = key.split(":")
-        if len(parts) >= 3:
-            codes.append(parts[2])
+    cursor = 0
+    codes: list[str] = []
+    while True:
+        cursor, batch = await redis_client.scan(
+            cursor, match="ws:room:*:count", count=100
+        )
+        for key in batch:
+            parts = key.split(":")
+            if len(parts) >= 3:
+                codes.append(parts[2])
+        if cursor == 0:
+            break
     return codes

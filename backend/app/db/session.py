@@ -9,16 +9,13 @@ from sqlalchemy.ext.asyncio import (
 
 from app.core.config import settings
 
-print(
-    "DATABASE_URL =",
-    settings.DATABASE_URL.replace(
-        settings.DATABASE_URL.split(":")[2].split("@")[0],
-        "***",
-    ),
-)
-
 engine = create_async_engine(
     settings.DATABASE_URL,
+    pool_size=20,
+    max_overflow=10,
+    pool_timeout=30,
+    pool_recycle=1800,
+    pool_pre_ping=True,
     connect_args={"ssl": ssl.create_default_context()},
 )
 

@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timedelta, timezone
+import asyncio
 
 from app.auth.dependencies import get_current_user
 from app.db.session import get_db, SessionLocal
@@ -291,20 +292,25 @@ async def advance_phase(
     # --------------------------------------------------
 
     if request.next_phase == GamePhase.GAME_OVER:
-        try:
-            from app.ml.service import train_model
+        async def _train_and_broadcast():
+            try:
+                from app.ml.service import train_model
 
-            ml_result = await train_model(db=db)
-            await manager.broadcast_to_room(
-                room_code=room.code,
-                message={
-                    "type": "ML_TRAINED",
-                    "accuracy": ml_result.get("accuracy"),
-                    "samples_used": ml_result.get("samples_used"),
-                },
-            )
-        except Exception:
-            pass  # ML training is non-critical
+                async with SessionLocal() as ml_db:
+                    ml_result = await train_model(db=ml_db)
+                    if ml_result and not ml_result.get("error"):
+                        await manager.broadcast_to_room(
+                            room_code=room.code,
+                            message={
+                                "type": "ML_TRAINED",
+                                "accuracy": ml_result.get("accuracy"),
+                                "samples_used": ml_result.get("samples_used"),
+                            },
+                        )
+            except Exception:
+                pass  # ML training is non-critical
+
+        asyncio.create_task(_train_and_broadcast())
 
     # --------------------------------------------------
     # SEND NEW ROUND MISSIONS TO COORDINATOR

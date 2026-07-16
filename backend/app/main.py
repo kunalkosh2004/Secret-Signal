@@ -74,11 +74,7 @@ app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(RequestIDMiddleware)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",  # Vite dev server
-        "http://localhost:4173",  # Vite preview
-        "http://localhost:3000",  # Docker nginx
-    ],
+    allow_origins=settings.allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -173,13 +169,14 @@ async def websocket_endpoint(
             while True:
                 message = await websocket.receive_json()
 
-                await handle_message(
-                    db=db,
-                    websocket=websocket,
-                    room_code=room_code,
-                    user_id=user_id,
-                    message=message,
-                )
+                async with SessionLocal() as db:
+                    await handle_message(
+                        db=db,
+                        websocket=websocket,
+                        room_code=room_code,
+                        user_id=user_id,
+                        message=message,
+                    )
 
         except WebSocketDisconnect:
             logger.info(

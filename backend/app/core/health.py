@@ -17,6 +17,7 @@ Production health check endpoints.
 import time
 
 from fastapi import APIRouter, Depends
+from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -68,10 +69,15 @@ async def readiness(db: AsyncSession = Depends(get_db)):
         checks["redis"] = {"status": "unhealthy", "error": str(e)}
         all_healthy = False
 
-    return {
-        "status": "ready" if all_healthy else "not_ready",
-        "checks": checks,
-    }
+    status_code = 200 if all_healthy else 503
+
+    return JSONResponse(
+        status_code=status_code,
+        content={
+            "status": "ready" if all_healthy else "not_ready",
+            "checks": checks,
+        },
+    )
 
 
 @router.get("/startup")

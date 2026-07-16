@@ -139,7 +139,10 @@ export function useWebSocket(roomCode: string | null): UseWebSocketResult {
       const currentToken = tokenRef.current
       if (!currentToken) return
 
-      const url = `ws://localhost:8000/ws?token=${currentToken}&room_code=${roomCode}`
+      const isSecure = window.location.protocol === 'https:'
+      const wsProtocol = isSecure ? 'wss:' : 'ws:'
+      const wsHost = window.location.host
+      const url = `${wsProtocol}//${wsHost}/ws?token=${currentToken}&room_code=${roomCode}`
       const ws = new WebSocket(url)
       wsRef.current = ws
       ws.onopen = () => {

@@ -25,7 +25,7 @@ ENV PATH="/opt/venv/bin:$PATH"
 COPY backend/ .
 
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -e ".[dev]"
+    pip install --no-cache-dir .
 
 # ---------------------------------------------------------------------------
 # Stage 2: Runtime

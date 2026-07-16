@@ -212,10 +212,8 @@ async def forgot_password(
     await store_password_reset_token(user.id, reset_token)
 
     # In production: send email with reset_token
-    # For now: return token in response (development only)
     return {
         "message": "If an account with that email exists, a reset link has been sent.",
-        "reset_token": reset_token,  # Remove in production
     }
 
 

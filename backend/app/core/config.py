@@ -49,7 +49,7 @@ class Settings(BaseSettings):
 
     backend_host: str = "0.0.0.0"
     backend_port: int = 8000
-    debug: bool = True
+    debug: bool = False
 
     # Environment
     environment: str = "development"
@@ -67,6 +67,7 @@ class Settings(BaseSettings):
     )
 
     frontend_url: str = "http://localhost:5173"
+    allowed_origins: list[str] = ["http://localhost:5173", "http://localhost:3000"]
     redis_host: str = "localhost"
     redis_port: int = 6379
     redis_password: str = ""
