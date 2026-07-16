@@ -1,5 +1,6 @@
 import asyncio
 from logging.config import fileConfig
+import ssl
 
 from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import create_async_engine
@@ -62,8 +63,17 @@ def do_run_migrations(connection):
 
 
 async def run_async_migrations() -> None:
+    ssl_context = ssl.create_default_context()
+    import sqlalchemy
+    import asyncpg
+    import alembic
+
+    print("SQLAlchemy:", sqlalchemy.__version__)
+    print("asyncpg:", asyncpg.__version__)
+    print("Alembic:", alembic.__version__)
     connectable = create_async_engine(
         settings.DATABASE_URL,
+        connect_args={"ssl": ssl_context},
         poolclass=pool.NullPool,
     )
 
