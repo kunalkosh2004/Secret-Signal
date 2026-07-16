@@ -56,7 +56,7 @@ class Settings(BaseSettings):
     )
 
     frontend_url: str = "http://localhost:5173"
-    allowed_origins: list[str] = ["http://localhost:5173", "http://localhost:3000"]
+    allowed_origins: list[str] = ["http://localhost:5173", settings.frontend_url]
     redis_host: str = "localhost"
     redis_port: int = 6379
     redis_password: str = ""
