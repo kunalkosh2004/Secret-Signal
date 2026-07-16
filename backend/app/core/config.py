@@ -25,38 +25,16 @@ class Settings(BaseSettings):
     @model_validator(mode="before")
     @classmethod
     def normalize_database_url(cls, values):
-        import os
-
-        print("=" * 80)
-        print("DATABASE_URL from ENV:", os.getenv("DATABASE_URL"))
-        print("=" * 80)
-
         url = values.get("DATABASE_URL")
 
-        if not url:
-            return values
+        if url and url.startswith("postgresql://"):
+            values["DATABASE_URL"] = url.replace(
+                "postgresql://",
+                "postgresql+asyncpg://",
+                1,
+            ).split("?")[0]
 
-        url = make_url(url)
-
-        if url.drivername == "postgresql":
-            url = url.set(drivername="postgresql+asyncpg")
-
-        query = dict(url.query)
-
-        # asyncpg does not support this parameter
-        query.pop("sslmode", None)
-        query.pop("channel_binding", None)
-
-        url = url.set(query=query)
-
-        values["DATABASE_URL"] = str(url)
-
-        print("=" * 80)
-        print("DATABASE_URL after normalization:", values["DATABASE_URL"])
-        print("=" * 80)
-
-        return values    
-    
+        return values           
     backend_host: str = "0.0.0.0"
 
     backend_port: int = 8000
