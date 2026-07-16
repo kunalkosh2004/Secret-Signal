@@ -20,7 +20,7 @@ engine = create_async_engine(
     pool_timeout=30,
     pool_recycle=1800,
     pool_pre_ping=True,
-    connect_args=connect_args,
+    connect_args={"ssl": "require"},
 )
 
 SessionLocal = async_sessionmaker(
