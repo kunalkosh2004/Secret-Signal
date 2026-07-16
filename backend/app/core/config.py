@@ -43,6 +43,9 @@ class Settings(BaseSettings):
 
         query = dict(url.query)
 
+        # asyncpg does not support this parameter
+        query.pop("channel_binding", None)
+
         url = url.set(query=query)
 
         values["DATABASE_URL"] = str(url)

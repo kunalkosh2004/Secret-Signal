@@ -62,8 +62,6 @@ def do_run_migrations(connection):
 
 
 async def run_async_migrations() -> None:
-    connect_args={}
-
     connectable = create_async_engine(
         settings.DATABASE_URL,
         poolclass=pool.NullPool,
