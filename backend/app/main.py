@@ -32,6 +32,8 @@ from app.websocket.handlers import (
     send_game_state_to_user,
 )
 from app.websocket.manager import manager
+from sqlalchemy import text
+from app.db.session import engine
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -235,6 +237,11 @@ async def websocket_endpoint(
 # ---------------------------------------------------------------------------
 # Routers
 # ---------------------------------------------------------------------------
+@app.get("/db-test")
+async def db_test():
+    async with engine.connect() as conn:
+        result = await conn.execute(text("SELECT 1"))
+        return {"result": result.scalar()}
 app.include_router(health_router)
 app.include_router(auth_router)
 app.include_router(rooms_router)
