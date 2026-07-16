@@ -42,8 +42,6 @@ class Settings(BaseSettings):
             url = url.set(drivername="postgresql+asyncpg")
 
         query = dict(url.query)
-        query.pop("sslmode", None)
-        query.pop("channel_binding", None)
 
         url = url.set(query=query)
 

@@ -62,18 +62,10 @@ def do_run_migrations(connection):
 
 
 async def run_async_migrations() -> None:
-    url = settings.DATABASE_URL
-
-    # Remove parameters asyncpg doesn't understand
-    url = url.replace("?sslmode=require&channel_binding=require", "")
-    url = url.replace("?sslmode=require", "")
-    url = url.replace("&channel_binding=require", "")
-
     connect_args={}
 
     connectable = create_async_engine(
-        url,
-        connect_args=connect_args,
+        settings.DATABASE_URL,
         poolclass=pool.NullPool,
     )
 
