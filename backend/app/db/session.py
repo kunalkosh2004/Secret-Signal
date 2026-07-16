@@ -1,5 +1,4 @@
 from typing import AsyncGenerator
-import ssl
 
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
@@ -11,13 +10,8 @@ from app.core.config import settings
 
 connect_args: dict = {}
 db_url = settings.DATABASE_URL or ""
-if "localhost" in db_url or "127.0.0.1" in db_url:
-    pass
-else:
-    ssl_ctx = ssl.create_default_context()
-    ssl_ctx.check_hostname = False
-    ssl_ctx.verify_mode = ssl.CERT_NONE
-    connect_args["ssl"] = ssl_ctx
+if "localhost" not in db_url and "127.0.0.1" not in db_url:
+    connect_args["ssl"] = False
 
 engine = create_async_engine(
     settings.DATABASE_URL,
