@@ -53,8 +53,10 @@ class Settings(BaseSettings):
         print("DATABASE_URL after normalization:", values["DATABASE_URL"])
         print("=" * 80)
 
-        return values    backend_host: str = "0.0.0.0"
-        
+        return values    
+    
+    backend_host: str = "0.0.0.0"
+
     backend_port: int = 8000
     debug: bool = False
 
