@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useAuthStore } from '../stores/authStore'
+import { WS_URL } from "../config/api";
 import type {
   RoomStateEvent,
   WsClientEvent,
@@ -139,10 +140,8 @@ export function useWebSocket(roomCode: string | null): UseWebSocketResult {
       const currentToken = tokenRef.current
       if (!currentToken) return
 
-      const isSecure = window.location.protocol === 'https:'
-      const wsProtocol = isSecure ? 'wss:' : 'ws:'
-      const wsHost = window.location.host
-      const url = `${wsProtocol}//${wsHost}/ws?token=${currentToken}&room_code=${roomCode}`
+      const url =
+        `${WS_URL}/ws?token=${currentToken}&room_code=${roomCode}`;
       const ws = new WebSocket(url)
       wsRef.current = ws
       ws.onopen = () => {
