@@ -17,7 +17,9 @@ import type {
   ResetPasswordResponse,
 } from '../types/auth.types'
 
-const BASE = '/api/v1/auth'
+import { API_V1 } from "../../../config/api";
+
+const BASE = `${API_V1}/auth`;
 
 async function request<T>(
   path: string,

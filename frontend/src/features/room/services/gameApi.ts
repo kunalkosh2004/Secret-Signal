@@ -1,6 +1,8 @@
 import { useAuthStore } from '../../../stores/authStore'
 
-const API_BASE = '/api/v1'
+import { API_V1 } from "../../../config/api";
+
+const API_BASE = API_V1;
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = useAuthStore.getState().token

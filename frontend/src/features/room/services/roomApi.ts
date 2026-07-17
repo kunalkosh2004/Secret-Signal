@@ -2,7 +2,9 @@ import type { CreateRoomRequest, JoinRoomRequest, RoomResponse } from '../types/
 import type { ApiErrorResponse } from '../../auth/types/auth.types'
 import { useAuthStore } from '../../../stores/authStore'
 
-const BASE = '/api/v1/rooms'
+import { API_V1 } from "../../../config/api";
+
+const BASE = `${API_V1}/rooms`;
 
 function authHeaders(): Record<string, string> {
   const token = useAuthStore.getState().token
