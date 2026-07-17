@@ -219,3 +219,9 @@ __marimo__/
 
 mds/
 frontend/frontend/package-lock.json
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/.DS_Store
