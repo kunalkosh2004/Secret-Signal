@@ -56,7 +56,7 @@ class Settings(BaseSettings):
     )
 
     frontend_url: str = "http://localhost:5173"
-    allowed_origins: list[str] = ["http://localhost:5173", settings.frontend_url]
+    allowed_origins: list[str] = ["http://localhost:5173"]
     redis_host: str = "localhost"
     redis_port: int = 6379
     redis_password: str = ""
@@ -68,13 +68,15 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def populate_redis_url(self) -> "Settings":
-        if self.redis_url:
-            return self
+        if not self.redis_url:
+            auth = f":{self.redis_password}@" if self.redis_password else ""
+            self.redis_url = (
+                f"redis://{auth}{self.redis_host}:{self.redis_port}/{self.redis_db}"
+            )
 
-        auth = f":{self.redis_password}@" if self.redis_password else ""
-        self.redis_url = (
-            f"redis://{auth}{self.redis_host}:{self.redis_port}/{self.redis_db}"
-        )
+        if self.frontend_url and self.frontend_url not in self.allowed_origins:
+            self.allowed_origins.append(self.frontend_url)
+
         return self
 
 
